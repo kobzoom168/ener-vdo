@@ -1,0 +1,31 @@
+{
+  "name": "ener-vdo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ener Scan video generation pipeline (isolated workers + admin API)",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "admin": "node dist/admin/server.js",
+    "worker:video-script": "node dist/workers/video-script.js",
+    "worker:video-voice": "node dist/workers/video-voice.js",
+    "worker:video-render": "node dist/workers/video-render.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@supabase/supabase-js": "^2.49.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "fluent-ffmpeg": "^2.1.3"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/fluent-ffmpeg": "^2.1.27",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}
