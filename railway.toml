@@ -1,0 +1,26 @@
+# Ener-VDO — Railway config-as-code
+#
+# Railway อ่านไฟล์นี้เป็น “หนึ่ง service ต่อหนึ่งไฟล์” ไม่รองรับ [[services]] หลายตัวในไฟล์เดียว
+# แนวทาง: สร้าง 4 services จาก repo เดียวกัน → build เดียวกัน (npm ci && npm run build)
+#
+# 1) admin-api — ใช้ไฟล์นี้เป็น default ที่ root (หรือตั้ง Config file path เป็น /railway.toml)
+# 2) worker-video-script / worker-video-voice / worker-video-render —
+#    สร้าง service แยก แล้วตั้งค่าใน Dashboard:
+#      Start command ตามบรรทัดด้านล่าง
+#      Restart policy = Always (workers)
+#    หรือเพิ่มไฟล์ railway.worker-*.toml แยกแล้วตั้ง Config file path ต่อ service
+#
+# worker-video-script:  node dist/workers/video-script.js
+# worker-video-voice:   node dist/workers/video-voice.js
+# worker-video-render:  node dist/workers/video-render.js   (แนะนำเพิ่ม RAM; มี ffmpeg ผ่าน @ffmpeg-installer/ffmpeg)
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm ci && npm run build"
+
+[deploy]
+startCommand = "node dist/admin/server.js"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
