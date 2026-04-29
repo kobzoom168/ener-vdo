@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "start": "node dist/admin/server.js",
     "admin": "node dist/admin/server.js",
     "worker:video-script": "node dist/workers/video-script.js",
     "worker:video-voice": "node dist/workers/video-voice.js",
