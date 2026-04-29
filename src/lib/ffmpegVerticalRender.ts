@@ -15,8 +15,7 @@ export async function renderVerticalBrandedMp4(params: {
   srtPath: string;
   outPath: string;
 }): Promise<void> {
-  const srtForFilter = escapeFfmpegPath(params.srtPath);
-  const vf = `subtitles='${srtForFilter}':charenc=UTF-8:force_style='Alignment=2,MarginV=140,Fontsize=20,Outline=2,Shadow=1'`;
+  void params.srtPath;
 
   await new Promise<void>((resolve, reject) => {
     ffmpeg()
@@ -38,7 +37,6 @@ export async function renderVerticalBrandedMp4(params: {
         "-b:a",
         "192k",
       ])
-      .videoFilters(vf)
       .output(params.outPath)
       .on("error", (err, _stdout, stderr) => {
         reject(
