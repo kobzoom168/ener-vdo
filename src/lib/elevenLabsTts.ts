@@ -34,7 +34,8 @@ export async function synthesizeThaiWithSubtitles(
     },
     body: JSON.stringify({
       text: scriptText,
-      model_id: "eleven_multilingual_v2_5",
+      model_id: "eleven_multilingual_v2",
+      language_code: "th",
       apply_text_normalization: "auto",
     }),
   });
