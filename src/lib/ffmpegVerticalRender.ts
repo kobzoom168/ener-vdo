@@ -16,10 +16,7 @@ export async function renderVerticalBrandedMp4(params: {
   outPath: string;
 }): Promise<void> {
   const srtForFilter = escapeFfmpegPath(params.srtPath);
-  const vf = [
-    `subtitles='${srtForFilter}':charenc=UTF-8:force_style='Alignment=2,MarginV=140,Fontsize=20,Outline=2,Shadow=1'`,
-    `drawtext=text='Ener Scan':fontcolor=white@0.9:fontsize=52:x=(w-text_w)/2:y=96:box=1:boxcolor=black@0.45:boxborderw=18`,
-  ].join(",");
+  const vf = `subtitles='${srtForFilter}':charenc=UTF-8:force_style='Alignment=2,MarginV=140,Fontsize=20,Outline=2,Shadow=1'`;
 
   await new Promise<void>((resolve, reject) => {
     ffmpeg()
