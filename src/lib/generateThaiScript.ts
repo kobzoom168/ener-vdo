@@ -4,6 +4,16 @@ import { env } from "../config/env.js";
 const SYSTEM =
   "คุณเป็นผู้เชี่ยวชาญด้านพลังงานวัตถุมงคล เขียน script ภาษาไทยสำหรับคลิปสั้น 45-60 วินาที จากข้อมูลพลังงานที่ให้มา ไม่ต้องระบุชื่อพระหรือเครื่องราง พูดถึงพลังงานและความเหมาะสมกับผู้ใช้";
 
+function sanitizeClaudeScript(raw: string): string {
+  return raw
+    .split(/\r?\n/)
+    .filter((line) => !line.trimStart().startsWith("#"))
+    .map((line) => line.replace(/\*\*/g, "").replace(/\*/g, ""))
+    .join("\n")
+    .replace(/\n\s*\n+/g, "\n\n")
+    .trim();
+}
+
 export async function generateThaiScriptFromContext(
   userContextJson: string
 ): Promise<string> {
@@ -32,7 +42,7 @@ export async function generateThaiScriptFromContext(
     type: "text";
     text: string;
   }>;
-  const text = parts.map((p) => p.text).join("\n").trim();
+  const text = sanitizeClaudeScript(parts.map((p) => p.text).join("\n"));
   if (!text) throw new Error("Claude returned empty script");
   return text;
 }
