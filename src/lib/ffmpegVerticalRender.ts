@@ -6,10 +6,6 @@ import { join } from "node:path";
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
-function escapeFfmpegPath(p: string): string {
-  return p.replace(/\\/g, "/").replace(/:/g, "\\\\:").replace(/'/g, "'\\\\''");
-}
-
 export async function renderVerticalBrandedMp4(params: {
   mp3Path: string;
   srtPath: string;
