@@ -29,7 +29,7 @@ function escapePathForSubtitlesFilter(p: string): string {
 function subtitlesFilterFromSrtPath(srtPath: string): string {
   const srt = escapePathForSubtitlesFilter(srtPath);
   const style =
-    "Alignment=2,MarginV=140,Fontsize=24,Bold=1,Outline=2,Shadow=1,PrimaryColour=&Hffffff&,OutlineColour=&H000000&,BackColour=&H80000000&,BorderStyle=4";
+    "Alignment=2,MarginV=80,MarginL=40,MarginR=40,Fontsize=14,Bold=1,Outline=2,Shadow=1,PrimaryColour=&Hffffff&,OutlineColour=&H000000&,WrapStyle=0";
   return `subtitles='${srt}':charenc=UTF-8:force_style='${style}'`;
 }
 
