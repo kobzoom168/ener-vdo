@@ -1,27 +1,10 @@
 import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
 import ffmpeg from "fluent-ffmpeg";
-import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-function thaiFontsDir(): string {
-  return join(__dirname, "../../assets/fonts");
-}
-
-function assertThaiFontBundled(): void {
-  const p = join(thaiFontsDir(), "NotoSansThai-Regular.ttf");
-  if (!existsSync(p)) {
-    throw new Error(
-      `Missing bundled Thai font at ${p}. Ensure assets/fonts/NotoSansThai-Regular.ttf exists (run from project root on Railway).`
-    );
-  }
-}
 
 /** Escape path for subtitles='...' / fontsdir='...' inside -vf / -filter_complex. */
 function escapePathForSubtitlesFilter(p: string): string {
@@ -35,12 +18,10 @@ function escapePathForSubtitlesFilter(p: string): string {
 }
 
 function subtitlesFilterFromSrtPath(srtPath: string): string {
-  assertThaiFontBundled();
   const srt = escapePathForSubtitlesFilter(srtPath);
-  const fonts = escapePathForSubtitlesFilter(thaiFontsDir());
   const style =
-    "FontName=NotoSansThai-Regular,Alignment=2,MarginV=140,Fontsize=20,Outline=2,Shadow=1,PrimaryColour=&Hffffff&";
-  return `subtitles='${srt}':charenc=UTF-8:fontsdir='${fonts}':force_style='${style}'`;
+    "Alignment=2,MarginV=140,Fontsize=24,Bold=1,Outline=2,Shadow=1,PrimaryColour=&Hffffff&,OutlineColour=&H000000&,BackColour=&H80000000&,BorderStyle=4";
+  return `subtitles='${srt}':charenc=UTF-8:force_style='${style}'`;
 }
 
 const OUTPUT_OPTS = [
