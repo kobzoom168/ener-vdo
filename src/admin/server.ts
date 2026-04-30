@@ -1,7 +1,6 @@
 import "dotenv/config";
 import express from "express";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { env } from "../config/env.js";
 import { createSignedUrlForRef } from "../lib/signedPreviewUrl.js";
 import { getSupabaseAdmin } from "../lib/supabaseAdmin.js";
@@ -20,7 +19,6 @@ if (!ADMIN_KEY) {
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
-const __dirname = dirname(fileURLToPath(import.meta.url));
 app.use(express.static(join(process.cwd(), "src", "admin", "public")));
 
 const corsOrigins = env.adminCorsOrigins();
