@@ -25,6 +25,7 @@ export type VideoJobRow = {
   script_text: string | null;
   voice_url: string | null;
   video_url: string | null;
+  background_url: string | null;
   subtitle_url: string | null;
   status: VideoJobStatus;
   error_message: string | null;

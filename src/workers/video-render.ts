@@ -30,9 +30,13 @@ async function downloadRef(ref: string | null, label: string): Promise<Buffer> {
 async function processJob(job: VideoJobRow): Promise<void> {
   const mp3 = await downloadRef(job.voice_url, "voice");
   const srtBuf = await downloadRef(job.subtitle_url, "subtitle");
+  const backgroundVideoBuffer = job.background_url
+    ? await downloadRef(job.background_url, "background")
+    : undefined;
   const mp4 = await renderVerticalBrandedMp4FromBuffers({
     mp3,
     srtUtf8: srtBuf.toString("utf8"),
+    backgroundVideoBuffer,
   });
 
   const videoRef = await uploadBytes({

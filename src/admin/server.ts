@@ -66,6 +66,8 @@ app.post("/admin/video-jobs", requireAdmin, async (req, res) => {
       typeof req.body?.source_metadata === "object" && req.body.source_metadata
         ? (req.body.source_metadata as Record<string, unknown>)
         : null;
+    const background_url =
+      typeof req.body?.background_url === "string" ? req.body.background_url : null;
 
     if (source_type === "scan_result" && !source_id) {
       res.status(400).json({ error: "scan_result requires source_id" });
@@ -76,6 +78,7 @@ app.post("/admin/video-jobs", requireAdmin, async (req, res) => {
       source_type,
       source_id,
       source_metadata,
+      background_url,
     });
     res.status(201).json(row);
   } catch (e) {
