@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ener-VDO Admin</title>
+    <style>
+      :root {
+        --bg: #1a1a2e;
+        --panel: #22223a;
+        --text: #ffffff;
+        --muted: #b8b8c9;
+        --line: #3b3b5e;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+      h1, h2 { margin: 0 0 12px; }
+      .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      input, select, button {
+        background: #121225;
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px;
+      }
+      input, select { min-width: 220px; }
+      button { cursor: pointer; }
+      button:hover { opacity: 0.9; }
+      .status {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .queued { background: #767676; }
+      .scripting { background: #2f6dff; }
+      .voicing { background: #8e44ad; }
+      .rendering { background: #e67e22; }
+      .ready_review { background: #f1c40f; color: #111; }
+      .approved { background: #2ecc71; }
+      .published { background: #1e8f4f; }
+      .failed { background: #e74c3c; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th, td {
+        border-bottom: 1px solid var(--line);
+        padding: 10px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th { color: var(--muted); font-weight: 700; }
+      .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+      .script-row td {
+        background: #17172b;
+        white-space: pre-wrap;
+        color: #d9d9ea;
+      }
+      .msg { margin-top: 8px; color: #9ad2ff; font-size: 13px; min-height: 18px; }
+      @media (max-width: 900px) {
+        table { font-size: 12px; }
+        input, select { min-width: 180px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <h1>Ener-VDO Admin</h1>
+        <div class="row">
+          <label for="adminKey">Admin Key</label>
+          <input id="adminKey" type="password" placeholder="ADMIN_API_KEY" />
+          <button id="saveKeyBtn">Save Key</button>
+          <button id="refreshBtn">Refresh</button>
+        </div>
+        <div id="message" class="msg"></div>
+      </div>
+
+      <div class="card">
+        <h2>สร้าง Job ใหม่</h2>
+        <div class="row">
+          <select id="sourceType">
+            <option value="scan_result">scan_result</option>
+            <option value="temple_footage">temple_footage</option>
+          </select>
+          <input id="sourceId" placeholder="source_id (UUID)" />
+          <input id="templeName" placeholder="temple_name" style="display:none;" />
+          <input id="templeScene" placeholder="scene" style="display:none;" />
+          <input id="templeDate" placeholder="date" style="display:none;" />
+          <button id="createBtn">สร้าง Job</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Jobs</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Script</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="jobsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      const LS_KEY = "ener_vdo_admin_key";
+      const apiBase = window.location.origin;
+      const adminKeyEl = document.getElementById("adminKey");
+      const msgEl = document.getElementById("message");
+      const sourceTypeEl = document.getElementById("sourceType");
+      const sourceIdEl = document.getElementById("sourceId");
+      const templeNameEl = document.getElementById("templeName");
+      const templeSceneEl = document.getElementById("templeScene");
+      const templeDateEl = document.getElementById("templeDate");
+      const jobsBody = document.getElementById("jobsBody");
+      const expandedScripts = new Set();
+
+      function statusClass(status) {
+        return String(status || "").replace(/\s+/g, "_");
+      }
+      function short(s, n) {
+        if (!s) return "-";
+        const t = String(s);
+        return t.length > n ? t.slice(0, n) + "..." : t;
+      }
+      function showMsg(text) {
+        msgEl.textContent = text || "";
+      }
+      function getKey() {
+        return localStorage.getItem(LS_KEY) || "";
+      }
+      function setKey(v) {
+        localStorage.setItem(LS_KEY, v || "");
+      }
+      async function api(path, opts = {}) {
+        const key = getKey();
+        const headers = Object.assign(
+          { "Content-Type": "application/json", "X-Admin-Key": key },
+          opts.headers || {}
+        );
+        const res = await fetch(apiBase + path, Object.assign({}, opts, { headers }));
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        return data;
+      }
+      function toggleSourceFields() {
+        const isScan = sourceTypeEl.value === "scan_result";
+        sourceIdEl.style.display = isScan ? "" : "none";
+        templeNameEl.style.display = isScan ? "none" : "";
+        templeSceneEl.style.display = isScan ? "none" : "";
+        templeDateEl.style.display = isScan ? "none" : "";
+      }
+      async function createJob() {
+        try {
+          const source_type = sourceTypeEl.value;
+          const body = { source_type };
+          if (source_type === "scan_result") {
+            if (!sourceIdEl.value.trim()) throw new Error("กรุณาใส่ source_id");
+            body.source_id = sourceIdEl.value.trim();
+          } else {
+            body.source_metadata = {
+              temple_name: templeNameEl.value.trim(),
+              scene: templeSceneEl.value.trim(),
+              date: templeDateEl.value.trim(),
+            };
+          }
+          await api("/admin/video-jobs", { method: "POST", body: JSON.stringify(body) });
+          showMsg("สร้าง job สำเร็จ");
+          await loadJobs();
+        } catch (e) {
+          alert(e.message || String(e));
+        }
+      }
+      function renderActions(job) {
+        const actions = [];
+        actions.push(`<button data-action="preview" data-id="${job.id}">Preview</button>`);
+        if (job.status === "ready_review") {
+          actions.push(`<button data-action="approve" data-id="${job.id}">Approve</button>`);
+        }
+        if (job.status === "failed" || job.status === "ready_review") {
+          actions.push(`<button data-action="retry" data-id="${job.id}">Retry</button>`);
+        }
+        actions.push(`<button data-action="script" data-id="${job.id}">Script</button>`);
+        return `<div class="actions">${actions.join("")}</div>`;
+      }
+      function renderJobs(jobs) {
+        const rows = [];
+        for (const job of jobs) {
+          rows.push(`
+            <tr>
+              <td>${short(job.id, 5)}</td>
+              <td>${job.source_type || "-"}</td>
+              <td><span class="status ${statusClass(job.status)}">${job.status || "-"}</span></td>
+              <td>${short(job.script_text, 50)}</td>
+              <td>${job.created_at ? new Date(job.created_at).toLocaleString() : "-"}</td>
+              <td>${renderActions(job)}</td>
+            </tr>
+          `);
+          if (expandedScripts.has(job.id) && job.script_text) {
+            rows.push(`
+              <tr class="script-row">
+                <td colspan="6">${job.script_text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>
+              </tr>
+            `);
+          }
+        }
+        jobsBody.innerHTML = rows.join("");
+      }
+      async function loadJobs() {
+        try {
+          const data = await api("/admin/video-jobs");
+          renderJobs(data.jobs || []);
+          showMsg(`อัปเดตล่าสุด: ${new Date().toLocaleTimeString()}`);
+        } catch (e) {
+          showMsg("โหลด jobs ไม่สำเร็จ");
+          alert(e.message || String(e));
+        }
+      }
+      async function onActionClick(ev) {
+        const btn = ev.target.closest("button[data-action]");
+        if (!btn) return;
+        const action = btn.dataset.action;
+        const id = btn.dataset.id;
+        try {
+          if (action === "preview") {
+            const data = await api(`/admin/video-jobs/${id}/preview`);
+            if (!data.video_url) throw new Error("ไม่มี video_url");
+            window.open(data.video_url, "_blank");
+          } else if (action === "approve") {
+            await api(`/admin/video-jobs/${id}/approve`, { method: "PATCH" });
+            await loadJobs();
+          } else if (action === "retry") {
+            await api(`/admin/video-jobs/${id}/retry`, {
+              method: "PATCH",
+              body: JSON.stringify({ from: "queued" }),
+            });
+            await loadJobs();
+          } else if (action === "script") {
+            if (expandedScripts.has(id)) expandedScripts.delete(id);
+            else expandedScripts.add(id);
+            await loadJobs();
+          }
+        } catch (e) {
+          alert(e.message || String(e));
+        }
+      }
+
+      document.getElementById("saveKeyBtn").addEventListener("click", () => {
+        setKey(adminKeyEl.value.trim());
+        showMsg("บันทึก Admin Key แล้ว");
+      });
+      document.getElementById("refreshBtn").addEventListener("click", loadJobs);
+      document.getElementById("createBtn").addEventListener("click", createJob);
+      sourceTypeEl.addEventListener("change", toggleSourceFields);
+      jobsBody.addEventListener("click", onActionClick);
+
+      adminKeyEl.value = getKey();
+      toggleSourceFields();
+      loadJobs();
+      setInterval(loadJobs, 10000);
+    </script>
+  </body>
+</html>
