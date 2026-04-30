@@ -1,10 +1,19 @@
 import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
 import ffmpeg from "fluent-ffmpeg";
+import { execSync } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+function resolveFfmpegPath(): string {
+  try {
+    const sys = execSync("which ffmpeg", { encoding: "utf8" }).trim();
+    if (sys) return sys;
+  } catch {}
+  return ffmpegInstaller.path;
+}
+
+ffmpeg.setFfmpegPath(resolveFfmpegPath());
 
 /** Escape path for subtitles='...' / fontsdir='...' inside -vf / -filter_complex. */
 function escapePathForSubtitlesFilter(p: string): string {
