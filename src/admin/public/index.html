@@ -121,6 +121,9 @@
             <input id="templeName" placeholder="temple_name" style="display:none;" />
             <input id="templeScene" placeholder="scene" style="display:none;" />
             <input id="templeDate" placeholder="date" style="display:none;" />
+            <select id="jobFootageSelect">
+              <option value="">Auto select background</option>
+            </select>
             <button id="createBtn">สร้าง Job</button>
           </div>
         </div>
@@ -133,6 +136,7 @@
                 <th>ID</th>
                 <th>Type</th>
                 <th>Status</th>
+                <th>Footage</th>
                 <th>Script</th>
                 <th>Created</th>
                 <th>Actions</th>
@@ -214,6 +218,7 @@
       const templeNameEl = document.getElementById("templeName");
       const templeSceneEl = document.getElementById("templeScene");
       const templeDateEl = document.getElementById("templeDate");
+      const jobFootageSelectEl = document.getElementById("jobFootageSelect");
       const jobsBody = document.getElementById("jobsBody");
       const footageBody = document.getElementById("footageBody");
       const footageFileEl = document.getElementById("footageFile");
@@ -275,6 +280,7 @@
               date: templeDateEl.value.trim(),
             };
           }
+          if (jobFootageSelectEl.value) body.footage_clip_id = jobFootageSelectEl.value;
           await api("/admin/video-jobs", { method: "POST", body: JSON.stringify(body) });
           showMsg("สร้าง job สำเร็จ");
           await loadJobs();
@@ -304,6 +310,7 @@
           actions.push(`<span style="color:#aaa;font-size:12px">${fs}</span>`);
           actions.push(`<button data-action="retry" data-id="${job.id}">Retry</button>`);
         }
+        actions.push(`<button data-action="set-footage" data-id="${job.id}">Set Footage</button>`);
         actions.push(`<button data-action="script" data-id="${job.id}">Script</button>`);
         return `<div class="actions">${actions.join("")}</div>`;
       }
@@ -315,6 +322,7 @@
               <td>${short(job.id, 5)}</td>
               <td>${job.source_type || "-"}</td>
               <td><span class="status ${statusClass(job.status)}">${job.status || "-"}</span></td>
+              <td>${job.footage_clip_id ? short(job.footage_clip_id, 5) : "auto"}</td>
               <td>${short(job.script_text, 50)}</td>
               <td>${job.created_at ? new Date(job.created_at).toLocaleString() : "-"}</td>
               <td>${renderActions(job)}</td>
@@ -323,12 +331,28 @@
           if (expandedScripts.has(job.id) && job.script_text) {
             rows.push(`
               <tr class="script-row">
-                <td colspan="6">${job.script_text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>
+                <td colspan="7">${job.script_text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>
               </tr>
             `);
           }
         }
         jobsBody.innerHTML = rows.join("");
+      }
+      function renderFootageSelect(clips) {
+        const opts = ['<option value="">Auto select background</option>'];
+        for (const c of clips) {
+          const label = `${c.clip_type} | ${c.temple_name || "-"} | ${c.scene_label || "-"}`;
+          opts.push(`<option value="${c.id}">${label}</option>`);
+        }
+        jobFootageSelectEl.innerHTML = opts.join("");
+      }
+      async function refreshActiveFootageSelect() {
+        try {
+          const data = await api("/admin/footage-clips?status=active");
+          renderFootageSelect(data.clips || []);
+        } catch (e) {
+          console.warn(e);
+        }
       }
       function renderFootage(clips) {
         const rows = clips.map((c) => `
@@ -368,7 +392,9 @@
           if (footageTempleFilterEl.value.trim()) q.set("temple_name", footageTempleFilterEl.value.trim());
           const path = "/admin/footage-clips" + (q.toString() ? `?${q.toString()}` : "");
           const data = await api(path);
-          renderFootage(data.clips || []);
+          const clips = data.clips || [];
+          renderFootage(clips);
+          await refreshActiveFootageSelect();
         } catch (e) {
           alert(e.message || String(e));
         }
@@ -427,6 +453,14 @@
             if (expandedScripts.has(id)) expandedScripts.delete(id);
             else expandedScripts.add(id);
             await loadJobs();
+          } else if (action === "set-footage") {
+            const cur = prompt("ใส่ footage_clip_id (เว้นว่าง = auto)");
+            const value = cur && cur.trim() ? cur.trim() : null;
+            await api(`/admin/video-jobs/${id}/footage`, {
+              method: "PATCH",
+              body: JSON.stringify({ footage_clip_id: value }),
+            });
+            await loadJobs();
           }
         } catch (e) {
           alert(e.message || String(e));
@@ -478,6 +512,7 @@
       toggleSourceFields();
       loadJobs();
       loadFootage();
+      refreshActiveFootageSelect();
       setInterval(() => {
         loadJobs();
         loadFootage();

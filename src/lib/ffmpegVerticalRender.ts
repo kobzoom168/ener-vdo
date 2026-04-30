@@ -55,6 +55,7 @@ export async function renderVerticalBrandedMp4(params: {
   srtPath: string;
   outPath: string;
   backgroundVideoPath?: string;
+  enableAmbientAudio?: boolean;
   subtitleFontSize?: number;
 }): Promise<void> {
   const fontSize = params.subtitleFontSize ?? env.subtitleFontSize();
@@ -67,19 +68,29 @@ export async function renderVerticalBrandedMp4(params: {
     const cmd = ffmpeg();
 
     if (params.backgroundVideoPath) {
-      const graph = [
-        "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg]",
-        `[bg]${sub}[v]`,
-        "[0:a]volume=0.15[ambient]",
-        "[1:a]volume=1.0[voice]",
-        "[ambient][voice]amix=inputs=2:duration=shortest[a]",
-      ].join(";");
+      const ambientEnabled = params.enableAmbientAudio ?? true;
+      const graph = ambientEnabled
+        ? [
+            "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg]",
+            `[bg]${sub}[v]`,
+            "[0:a]volume=0.15[ambient]",
+            "[1:a]volume=1.0[voice]",
+            "[ambient][voice]amix=inputs=2:duration=shortest[a]",
+          ].join(";")
+        : [
+            "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg]",
+            `[bg]${sub}[v]`,
+          ].join(";");
       cmd
         .input(params.backgroundVideoPath)
         .inputOptions(["-stream_loop", "-1"])
         .input(params.mp3Path)
         .complexFilter(graph)
-        .outputOptions(["-map", "[v]", "-map", "[a]", ...OUTPUT_OPTS])
+        .outputOptions(
+          ambientEnabled
+            ? ["-map", "[v]", "-map", "[a]", ...OUTPUT_OPTS]
+            : ["-map", "[v]", "-map", "1:a", ...OUTPUT_OPTS]
+        )
         .output(params.outPath);
     } else {
       cmd
@@ -107,6 +118,7 @@ export async function renderVerticalBrandedMp4FromBuffers(params: {
   mp3: Buffer;
   srtUtf8: string;
   backgroundVideoBuffer?: Buffer;
+  enableAmbientAudio?: boolean;
   subtitleFontSize?: number;
 }): Promise<Buffer> {
   const dir = await mkdtemp(join(tmpdir(), "ener-vdo-"));
@@ -126,6 +138,7 @@ export async function renderVerticalBrandedMp4FromBuffers(params: {
       srtPath,
       outPath,
       backgroundVideoPath,
+      enableAmbientAudio: params.enableAmbientAudio,
       subtitleFontSize: params.subtitleFontSize,
     });
     return await readFile(outPath);

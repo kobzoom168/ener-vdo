@@ -1,4 +1,8 @@
 import { env } from "../config/env.js";
+import {
+  findActiveFootageClipByPriority,
+  getActiveFootageClipById,
+} from "../lib/footageClipsDb.js";
 import { renderVerticalBrandedMp4FromBuffers } from "../lib/ffmpegVerticalRender.js";
 import {
   finalVideoObjectKey,
@@ -12,6 +16,7 @@ import {
   updateVideoJob,
 } from "../lib/videoJobsDb.js";
 import type { VideoJobRow } from "../lib/videoJobTypes.js";
+import type { FootageClipRow } from "../lib/footageTypes.js";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -27,16 +32,132 @@ async function downloadRef(ref: string | null, label: string): Promise<Buffer> {
   return await downloadStorageObject(parsed.bucket, parsed.objectPath);
 }
 
+function getTempleNameFromSourceMetadata(
+  sourceMetadata: VideoJobRow["source_metadata"]
+): string | null {
+  if (!sourceMetadata || typeof sourceMetadata !== "object") return null;
+  const t = (sourceMetadata as Record<string, unknown>).temple_name;
+  return typeof t === "string" && t.trim() ? t.trim() : null;
+}
+
+async function resolveFootageForJob(job: VideoJobRow): Promise<{
+  clip: FootageClipRow | null;
+  manual: boolean;
+}> {
+  if (job.footage_clip_id) {
+    const clip = await getActiveFootageClipById(job.footage_clip_id);
+    if (!clip) {
+      throw new Error(`Manual footage_clip_id not found/active: ${job.footage_clip_id}`);
+    }
+    console.log("VIDEO_FOOTAGE_MANUAL_SELECTED", {
+      job_id: job.id,
+      footage_clip_id: clip.id,
+    });
+    return { clip, manual: true };
+  }
+
+  if (job.source_type === "temple_footage") {
+    const templeName = getTempleNameFromSourceMetadata(job.source_metadata);
+    if (!templeName) return { clip: null, manual: false };
+    const clip = await findActiveFootageClipByPriority({
+      temple_name: templeName,
+      clip_type_priority: [
+        "buddha_image",
+        "temple_exterior",
+        "incense",
+        "walking",
+        "generic_spiritual",
+      ],
+    });
+    if (clip) {
+      console.log("VIDEO_FOOTAGE_SELECTED", {
+        job_id: job.id,
+        footage_clip_id: clip.id,
+        source_type: job.source_type,
+        temple_name: templeName,
+      });
+    }
+    return { clip, manual: false };
+  }
+
+  if (job.source_type === "scan_result") {
+    const clip = await findActiveFootageClipByPriority({
+      clip_type_priority: ["amulet_table", "generic_spiritual"],
+    });
+    if (clip) {
+      console.log("VIDEO_FOOTAGE_SELECTED", {
+        job_id: job.id,
+        footage_clip_id: clip.id,
+        source_type: job.source_type,
+      });
+    }
+    return { clip, manual: false };
+  }
+
+  return { clip: null, manual: false };
+}
+
 async function processJob(job: VideoJobRow): Promise<void> {
   const mp3 = await downloadRef(job.voice_url, "voice");
   const srtBuf = await downloadRef(job.subtitle_url, "subtitle");
-  const backgroundVideoBuffer = job.background_url
-    ? await downloadRef(job.background_url, "background")
-    : undefined;
+  let backgroundVideoBuffer: Buffer | undefined;
+  let enableAmbientAudio = false;
+
+  const resolved = await resolveFootageForJob(job);
+  if (!resolved.clip) {
+    if (job.background_url) {
+      try {
+        backgroundVideoBuffer = await downloadRef(job.background_url, "background");
+        console.log("VIDEO_FOOTAGE_SELECTED", {
+          job_id: job.id,
+          source_type: "legacy_background_url",
+        });
+      } catch (e) {
+        console.warn("VIDEO_FOOTAGE_DOWNLOAD_FAILED", {
+          job_id: job.id,
+          source_type: "legacy_background_url",
+          error: errMessage(e),
+        });
+      }
+    }
+    if (!backgroundVideoBuffer) {
+      console.log("VIDEO_FOOTAGE_FALLBACK_BLACK", { job_id: job.id });
+    }
+  } else {
+    try {
+      backgroundVideoBuffer = await downloadStorageObject(
+        resolved.clip.storage_bucket,
+        resolved.clip.storage_path
+      );
+      enableAmbientAudio =
+        resolved.clip.ambient_audio_enabled === true && resolved.clip.has_audio === true;
+      console.log("VIDEO_FOOTAGE_RENDER_WITH_BACKGROUND", {
+        job_id: job.id,
+        footage_clip_id: resolved.clip.id,
+        ambient_audio_enabled: enableAmbientAudio,
+      });
+    } catch (e) {
+      console.warn("VIDEO_FOOTAGE_DOWNLOAD_FAILED", {
+        job_id: job.id,
+        footage_clip_id: resolved.clip.id,
+        error: errMessage(e),
+      });
+      if (resolved.manual) {
+        throw new Error(
+          `Manual footage download failed for ${resolved.clip.id}: ${errMessage(e)}`
+        );
+      }
+      console.log("VIDEO_FOOTAGE_FALLBACK_BLACK", { job_id: job.id });
+      backgroundVideoBuffer = undefined;
+      enableAmbientAudio = false;
+    }
+  }
+
   const mp4 = await renderVerticalBrandedMp4FromBuffers({
     mp3,
     srtUtf8: srtBuf.toString("utf8"),
     backgroundVideoBuffer,
+    enableAmbientAudio,
     subtitleFontSize: job.subtitle_fontsize ?? undefined,
   });
 

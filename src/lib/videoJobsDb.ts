@@ -35,6 +35,7 @@ export async function updateVideoJob(
       | "voice_url"
       | "video_url"
       | "background_url"
+      | "footage_clip_id"
       | "subtitle_fontsize"
       | "subtitle_url"
       | "error_message"
@@ -58,6 +59,7 @@ export async function insertVideoJob(params: {
   source_id?: string | null;
   source_metadata?: Record<string, unknown> | null;
   background_url?: string | null;
+  footage_clip_id?: string | null;
   subtitle_fontsize?: number | null;
 }): Promise<VideoJobRow> {
   const supabase = getSupabaseAdmin();
@@ -68,6 +70,7 @@ export async function insertVideoJob(params: {
       source_id: params.source_id ?? null,
       source_metadata: params.source_metadata ?? null,
       background_url: params.background_url ?? null,
+      footage_clip_id: params.footage_clip_id ?? null,
       subtitle_fontsize: params.subtitle_fontsize ?? null,
       status: "queued",
     })

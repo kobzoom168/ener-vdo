@@ -91,6 +91,18 @@ app.post("/admin/video-jobs", requireAdmin, async (req, res) => {
         : null;
     const background_url =
       typeof req.body?.background_url === "string" ? req.body.background_url : null;
+    const footage_clip_id =
+      typeof req.body?.footage_clip_id === "string" && req.body.footage_clip_id.trim()
+        ? req.body.footage_clip_id.trim()
+        : null;
+
+    if (footage_clip_id) {
+      const clip = await getFootageClipById(footage_clip_id);
+      if (!clip || clip.status !== "active") {
+        res.status(400).json({ error: "footage_clip_id must reference an active footage clip" });
+        return;
+      }
+    }
 
     if (source_type === "scan_result" && !source_id) {
       res.status(400).json({ error: "scan_result requires source_id" });
@@ -102,8 +114,35 @@ app.post("/admin/video-jobs", requireAdmin, async (req, res) => {
       source_id,
       source_metadata,
       background_url,
+      footage_clip_id,
     });
     res.status(201).json(row);
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.patch("/admin/video-jobs/:id/footage", requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const existing = await getVideoJobById(id);
+    if (!existing) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const footage_clip_id =
+      typeof req.body?.footage_clip_id === "string" && req.body.footage_clip_id.trim()
+        ? req.body.footage_clip_id.trim()
+        : null;
+    if (footage_clip_id) {
+      const clip = await getFootageClipById(footage_clip_id);
+      if (!clip || clip.status !== "active") {
+        res.status(400).json({ error: "footage_clip_id must reference an active footage clip" });
+        return;
+      }
+    }
+    await updateVideoJob(id, { footage_clip_id });
+    res.json({ ok: true, id, footage_clip_id });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

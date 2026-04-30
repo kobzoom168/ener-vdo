@@ -59,6 +59,41 @@ export async function getFootageClipById(id: string): Promise<FootageClipRow | n
   return (data as FootageClipRow | null) ?? null;
 }
 
+export async function getActiveFootageClipById(id: string): Promise<FootageClipRow | null> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("footage_clips")
+    .select("*")
+    .eq("id", id)
+    .eq("status", "active")
+    .maybeSingle();
+  if (error) throw new Error(`footage_clips active fetch failed: ${error.message}`);
+  return (data as FootageClipRow | null) ?? null;
+}
+
+export async function findActiveFootageClipByPriority(input: {
+  temple_name?: string | null;
+  clip_type_priority: FootageClipType[];
+}): Promise<FootageClipRow | null> {
+  const supabase = getSupabaseAdmin();
+  const temple = input.temple_name?.trim();
+  for (const clipType of input.clip_type_priority) {
+    let q = supabase
+      .from("footage_clips")
+      .select("*")
+      .eq("status", "active")
+      .eq("clip_type", clipType)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (temple) q = q.eq("temple_name", temple);
+    const { data, error } = await q;
+    if (error) throw new Error(`footage_clips priority lookup failed: ${error.message}`);
+    const row = (data as FootageClipRow[] | null)?.[0];
+    if (row) return row;
+  }
+  return null;
+}
+
 export async function updateFootageClip(
   id: string,
   patch: Partial<
