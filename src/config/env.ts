@@ -24,6 +24,7 @@ export const env = {
   anthropicApiKey: () => req("ANTHROPIC_API_KEY"),
   elevenLabsApiKey: () => req("ELEVENLABS_API_KEY"),
   elevenLabsVoiceId: () => req("ELEVENLABS_VOICE_ID"),
+  subtitleFontSize: () => optInt("SUBTITLE_FONTSIZE", 8),
 
   workerPollMs: () => optInt("WORKER_POLL_MS", 3000),
   workerMaxRetries: () => optInt("WORKER_MAX_RETRIES", 5),

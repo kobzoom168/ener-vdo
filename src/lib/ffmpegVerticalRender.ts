@@ -4,6 +4,7 @@ import { execSync } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { env } from "../config/env.js";
 
 function resolveFfmpegPath(): string {
   try {
@@ -29,7 +30,7 @@ function escapePathForSubtitlesFilter(p: string): string {
 function subtitlesFilterFromSrtPath(srtPath: string): string {
   const srt = escapePathForSubtitlesFilter(srtPath);
   const style =
-    "Alignment=2,MarginV=60,MarginL=60,MarginR=60,Fontsize=10,Bold=1,Outline=2,Shadow=1,PrimaryColour=&Hffffff&,OutlineColour=&H000000&,WrapStyle=2";
+    `Alignment=2,MarginV=60,MarginL=60,MarginR=60,Fontsize=${env.subtitleFontSize()},Bold=1,Outline=2,Shadow=1,PrimaryColour=&Hffffff&,OutlineColour=&H000000&,WrapStyle=2`;
   return `subtitles='${srt}':charenc=UTF-8:force_style='${style}'`;
 }
 
