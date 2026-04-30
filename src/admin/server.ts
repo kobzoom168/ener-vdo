@@ -1,9 +1,26 @@
 import "dotenv/config";
 import express from "express";
+import multer from "multer";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { env } from "../config/env.js";
+import {
+  FOOTAGE_CLIP_TYPES,
+  FOOTAGE_STATUSES,
+  type FootageClipType,
+  type FootageStatus,
+} from "../lib/footageTypes.js";
+import {
+  getFootageClipById,
+  insertFootageClip,
+  listFootageClips,
+  updateFootageClip,
+} from "../lib/footageClipsDb.js";
 import { createSignedUrlForRef } from "../lib/signedPreviewUrl.js";
 import { getSupabaseAdmin } from "../lib/supabaseAdmin.js";
+import { createSignedUrlForObject } from "../lib/signedPreviewUrl.js";
+import { VIDEO_ASSETS_BUCKET } from "../lib/videoJobTypes.js";
+import { uploadBytesToBucket } from "../lib/storageUpload.js";
 import type { VideoJobSourceType } from "../lib/videoJobTypes.js";
 import {
   getVideoJobById,
@@ -20,6 +37,10 @@ if (!ADMIN_KEY) {
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 app.use(express.static(join(process.cwd(), "src", "admin", "public")));
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: env.maxFootageUploadMb() * 1024 * 1024 },
+});
 
 const corsOrigins = env.adminCorsOrigins();
 if (corsOrigins.length) {
@@ -197,6 +218,147 @@ app.patch("/admin/video-pipeline/settings", requireAdmin, async (req, res) => {
     );
     if (error) throw new Error(error.message);
     res.json({ ok: true, auto_video_job_on_scan_result: enabled });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post(
+  "/admin/footage-clips",
+  requireAdmin,
+  upload.single("video"),
+  async (req, res) => {
+    try {
+      const clip_type = req.body?.clip_type as FootageClipType;
+      if (!FOOTAGE_CLIP_TYPES.includes(clip_type)) {
+        res.status(400).json({ error: "Invalid clip_type" });
+        return;
+      }
+      if (!req.file) {
+        res.status(400).json({ error: "video file is required (multipart field: video)" });
+        return;
+      }
+      if (!req.file.mimetype.startsWith("video/")) {
+        res.status(400).json({ error: "Only video uploads are allowed" });
+        return;
+      }
+
+      const id = randomUUID();
+      const storage_bucket = VIDEO_ASSETS_BUCKET;
+      const storage_path = `footage/${id}/source.mp4`;
+      await uploadBytesToBucket({
+        bucket: storage_bucket,
+        objectPath: storage_path,
+        body: req.file.buffer,
+        contentType: req.file.mimetype || "video/mp4",
+      });
+
+      const ambient_audio_enabled =
+        req.body?.ambient_audio_enabled === "false" || req.body?.ambient_audio_enabled === false
+          ? false
+          : true;
+      const temple_name =
+        typeof req.body?.temple_name === "string" ? req.body.temple_name.trim() : null;
+      const scene_label =
+        typeof req.body?.scene_label === "string" ? req.body.scene_label.trim() : null;
+
+      const row = await insertFootageClip({
+        id,
+        temple_name: temple_name || null,
+        clip_type,
+        scene_label: scene_label || null,
+        storage_bucket,
+        storage_path,
+        ambient_audio_enabled,
+      });
+      res.status(201).json(row);
+    } catch (e) {
+      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+);
+
+app.get("/admin/footage-clips", requireAdmin, async (req, res) => {
+  try {
+    const statusRaw = typeof req.query.status === "string" ? req.query.status : undefined;
+    const clipTypeRaw = typeof req.query.clip_type === "string" ? req.query.clip_type : undefined;
+    const temple_name =
+      typeof req.query.temple_name === "string" ? req.query.temple_name : undefined;
+    const include_deleted = req.query.include_deleted === "true";
+
+    const status = FOOTAGE_STATUSES.includes(statusRaw as FootageStatus)
+      ? (statusRaw as FootageStatus)
+      : undefined;
+    const clip_type = FOOTAGE_CLIP_TYPES.includes(clipTypeRaw as FootageClipType)
+      ? (clipTypeRaw as FootageClipType)
+      : undefined;
+
+    const clips = await listFootageClips({ status, clip_type, temple_name, include_deleted });
+    res.json({ clips });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get("/admin/footage-clips/:id/preview", requireAdmin, async (req, res) => {
+  try {
+    const clip = await getFootageClipById(req.params.id);
+    if (!clip || clip.status === "deleted") {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const signedUrl = await createSignedUrlForObject(clip.storage_bucket, clip.storage_path, 3600);
+    res.json({ preview_url: signedUrl });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.patch("/admin/footage-clips/:id", requireAdmin, async (req, res) => {
+  try {
+    const clip = await getFootageClipById(req.params.id);
+    if (!clip) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const patch: Parameters<typeof updateFootageClip>[1] = {};
+    if (typeof req.body?.temple_name === "string" || req.body?.temple_name === null) {
+      patch.temple_name = req.body.temple_name;
+    }
+    if (typeof req.body?.scene_label === "string" || req.body?.scene_label === null) {
+      patch.scene_label = req.body.scene_label;
+    }
+    if (typeof req.body?.ambient_audio_enabled === "boolean") {
+      patch.ambient_audio_enabled = req.body.ambient_audio_enabled;
+    }
+    if (
+      typeof req.body?.clip_type === "string" &&
+      FOOTAGE_CLIP_TYPES.includes(req.body.clip_type as FootageClipType)
+    ) {
+      patch.clip_type = req.body.clip_type as FootageClipType;
+    }
+    if (
+      typeof req.body?.status === "string" &&
+      FOOTAGE_STATUSES.includes(req.body.status as FootageStatus)
+    ) {
+      patch.status = req.body.status as FootageStatus;
+    }
+    const updated = await updateFootageClip(req.params.id, patch);
+    res.json(updated);
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete("/admin/footage-clips/:id", requireAdmin, async (req, res) => {
+  try {
+    const clip = await getFootageClipById(req.params.id);
+    if (!clip) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const updated = await updateFootageClip(req.params.id, { status: "deleted" });
+    res.json(updated);
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

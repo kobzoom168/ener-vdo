@@ -25,6 +25,7 @@ export const env = {
   elevenLabsApiKey: () => req("ELEVENLABS_API_KEY"),
   elevenLabsVoiceId: () => req("ELEVENLABS_VOICE_ID"),
   subtitleFontSize: () => optInt("SUBTITLE_FONTSIZE", 8),
+  maxFootageUploadMb: () => optInt("MAX_FOOTAGE_UPLOAD_MB", 200),
 
   workerPollMs: () => optInt("WORKER_POLL_MS", 3000),
   workerMaxRetries: () => optInt("WORKER_MAX_RETRIES", 5),

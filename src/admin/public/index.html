@@ -82,6 +82,10 @@
         color: #d9d9ea;
       }
       .msg { margin-top: 8px; color: #9ad2ff; font-size: 13px; min-height: 18px; }
+      .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+      .tab-btn.active { background: #2f6dff; }
+      .section { display: none; }
+      .section.active { display: block; }
       @media (max-width: 900px) {
         table { font-size: 12px; }
         input, select { min-width: 180px; }
@@ -100,38 +104,104 @@
         </div>
         <div id="message" class="msg"></div>
       </div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="jobsSection">Video Jobs</button>
+        <button class="tab-btn" data-tab="footageSection">Footage Library</button>
+      </div>
 
-      <div class="card">
-        <h2>สร้าง Job ใหม่</h2>
-        <div class="row">
-          <select id="sourceType">
-            <option value="scan_result">scan_result</option>
-            <option value="temple_footage">temple_footage</option>
-          </select>
-          <input id="sourceId" placeholder="source_id (UUID)" />
-          <input id="templeName" placeholder="temple_name" style="display:none;" />
-          <input id="templeScene" placeholder="scene" style="display:none;" />
-          <input id="templeDate" placeholder="date" style="display:none;" />
-          <button id="createBtn">สร้าง Job</button>
+      <section id="jobsSection" class="section active">
+        <div class="card">
+          <h2>สร้าง Job ใหม่</h2>
+          <div class="row">
+            <select id="sourceType">
+              <option value="scan_result">scan_result</option>
+              <option value="temple_footage">temple_footage</option>
+            </select>
+            <input id="sourceId" placeholder="source_id (UUID)" />
+            <input id="templeName" placeholder="temple_name" style="display:none;" />
+            <input id="templeScene" placeholder="scene" style="display:none;" />
+            <input id="templeDate" placeholder="date" style="display:none;" />
+            <button id="createBtn">สร้าง Job</button>
+          </div>
         </div>
-      </div>
 
-      <div class="card">
-        <h2>Jobs</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>Script</th>
-              <th>Created</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="jobsBody"></tbody>
-        </table>
-      </div>
+        <div class="card">
+          <h2>Jobs</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Script</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="jobsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="footageSection" class="section">
+        <div class="card">
+          <h2>Upload Footage</h2>
+          <div class="row">
+            <input id="footageFile" type="file" accept="video/*" />
+            <input id="footageTempleName" placeholder="temple_name (optional)" />
+            <select id="footageClipType">
+              <option value="temple_exterior">temple_exterior</option>
+              <option value="buddha_image">buddha_image</option>
+              <option value="incense">incense</option>
+              <option value="walking">walking</option>
+              <option value="market">market</option>
+              <option value="amulet_table">amulet_table</option>
+              <option value="generic_spiritual">generic_spiritual</option>
+            </select>
+            <input id="footageSceneLabel" placeholder="scene_label (optional)" />
+            <label><input id="footageAmbient" type="checkbox" checked /> ambient_audio_enabled</label>
+            <button id="uploadFootageBtn">Upload</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Footage Clips</h2>
+          <div class="row" style="margin-bottom:10px">
+            <select id="footageStatusFilter">
+              <option value="">status: all (exclude deleted)</option>
+              <option value="active">active</option>
+              <option value="hidden">hidden</option>
+              <option value="deleted">deleted</option>
+            </select>
+            <select id="footageTypeFilter">
+              <option value="">clip_type: all</option>
+              <option value="temple_exterior">temple_exterior</option>
+              <option value="buddha_image">buddha_image</option>
+              <option value="incense">incense</option>
+              <option value="walking">walking</option>
+              <option value="market">market</option>
+              <option value="amulet_table">amulet_table</option>
+              <option value="generic_spiritual">generic_spiritual</option>
+            </select>
+            <input id="footageTempleFilter" placeholder="filter temple_name" />
+            <button id="refreshFootageBtn">Refresh Footage</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>clip_type</th>
+                <th>temple_name</th>
+                <th>scene_label</th>
+                <th>status</th>
+                <th>ambient</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="footageBody"></tbody>
+          </table>
+        </div>
+      </section>
     </div>
 
     <script>
@@ -145,6 +215,15 @@
       const templeSceneEl = document.getElementById("templeScene");
       const templeDateEl = document.getElementById("templeDate");
       const jobsBody = document.getElementById("jobsBody");
+      const footageBody = document.getElementById("footageBody");
+      const footageFileEl = document.getElementById("footageFile");
+      const footageTempleNameEl = document.getElementById("footageTempleName");
+      const footageClipTypeEl = document.getElementById("footageClipType");
+      const footageSceneLabelEl = document.getElementById("footageSceneLabel");
+      const footageAmbientEl = document.getElementById("footageAmbient");
+      const footageStatusFilterEl = document.getElementById("footageStatusFilter");
+      const footageTypeFilterEl = document.getElementById("footageTypeFilter");
+      const footageTempleFilterEl = document.getElementById("footageTempleFilter");
       const expandedScripts = new Set();
 
       function statusClass(status) {
@@ -203,6 +282,12 @@
           alert(e.message || String(e));
         }
       }
+      function activateTab(tabId) {
+        document.querySelectorAll(".section").forEach((el) => el.classList.remove("active"));
+        document.querySelectorAll(".tab-btn").forEach((el) => el.classList.remove("active"));
+        document.getElementById(tabId).classList.add("active");
+        document.querySelector(`.tab-btn[data-tab="${tabId}"]`).classList.add("active");
+      }
       function renderActions(job) {
         const actions = [];
         actions.push(`<button data-action="preview" data-id="${job.id}">Preview</button>`);
@@ -245,6 +330,26 @@
         }
         jobsBody.innerHTML = rows.join("");
       }
+      function renderFootage(clips) {
+        const rows = clips.map((c) => `
+          <tr>
+            <td>${short(c.id, 5)}</td>
+            <td>${c.clip_type || "-"}</td>
+            <td>${c.temple_name || "-"}</td>
+            <td>${c.scene_label || "-"}</td>
+            <td>${c.status || "-"}</td>
+            <td>${c.ambient_audio_enabled ? "on" : "off"}</td>
+            <td class="actions">
+              <button data-f-action="preview" data-id="${c.id}">Preview</button>
+              <button data-f-action="toggle" data-id="${c.id}" data-status="${c.status}">
+                ${c.status === "hidden" ? "Activate" : "Hide"}
+              </button>
+              <button data-f-action="delete" data-id="${c.id}">Delete</button>
+            </td>
+          </tr>
+        `);
+        footageBody.innerHTML = rows.join("");
+      }
       async function loadJobs() {
         try {
           const data = await api("/admin/video-jobs");
@@ -252,6 +357,45 @@
           showMsg(`อัปเดตล่าสุด: ${new Date().toLocaleTimeString()}`);
         } catch (e) {
           showMsg("โหลด jobs ไม่สำเร็จ");
+          alert(e.message || String(e));
+        }
+      }
+      async function loadFootage() {
+        try {
+          const q = new URLSearchParams();
+          if (footageStatusFilterEl.value) q.set("status", footageStatusFilterEl.value);
+          if (footageTypeFilterEl.value) q.set("clip_type", footageTypeFilterEl.value);
+          if (footageTempleFilterEl.value.trim()) q.set("temple_name", footageTempleFilterEl.value.trim());
+          const path = "/admin/footage-clips" + (q.toString() ? `?${q.toString()}` : "");
+          const data = await api(path);
+          renderFootage(data.clips || []);
+        } catch (e) {
+          alert(e.message || String(e));
+        }
+      }
+      async function uploadFootage() {
+        try {
+          const file = footageFileEl.files && footageFileEl.files[0];
+          if (!file) throw new Error("กรุณาเลือกไฟล์วิดีโอ");
+          if (!file.type.startsWith("video/")) throw new Error("รองรับเฉพาะไฟล์วิดีโอ");
+          const fd = new FormData();
+          fd.append("video", file);
+          fd.append("clip_type", footageClipTypeEl.value);
+          fd.append("temple_name", footageTempleNameEl.value.trim());
+          fd.append("scene_label", footageSceneLabelEl.value.trim());
+          fd.append("ambient_audio_enabled", footageAmbientEl.checked ? "true" : "false");
+          const key = getKey();
+          const res = await fetch(apiBase + "/admin/footage-clips", {
+            method: "POST",
+            headers: { "X-Admin-Key": key },
+            body: fd,
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+          showMsg("อัปโหลด footage สำเร็จ");
+          footageFileEl.value = "";
+          await loadFootage();
+        } catch (e) {
           alert(e.message || String(e));
         }
       }
@@ -288,6 +432,32 @@
           alert(e.message || String(e));
         }
       }
+      async function onFootageActionClick(ev) {
+        const btn = ev.target.closest("button[data-f-action]");
+        if (!btn) return;
+        const action = btn.dataset.fAction;
+        const id = btn.dataset.id;
+        try {
+          if (action === "preview") {
+            const data = await api(`/admin/footage-clips/${id}/preview`);
+            if (!data.preview_url) throw new Error("ไม่มี preview_url");
+            window.open(data.preview_url, "_blank");
+          } else if (action === "toggle") {
+            const current = btn.dataset.status;
+            const next = current === "hidden" ? "active" : "hidden";
+            await api(`/admin/footage-clips/${id}`, {
+              method: "PATCH",
+              body: JSON.stringify({ status: next }),
+            });
+            await loadFootage();
+          } else if (action === "delete") {
+            await api(`/admin/footage-clips/${id}`, { method: "DELETE" });
+            await loadFootage();
+          }
+        } catch (e) {
+          alert(e.message || String(e));
+        }
+      }
 
       document.getElementById("saveKeyBtn").addEventListener("click", () => {
         setKey(adminKeyEl.value.trim());
@@ -295,13 +465,23 @@
       });
       document.getElementById("refreshBtn").addEventListener("click", loadJobs);
       document.getElementById("createBtn").addEventListener("click", createJob);
+      document.getElementById("uploadFootageBtn").addEventListener("click", uploadFootage);
+      document.getElementById("refreshFootageBtn").addEventListener("click", loadFootage);
+      document.querySelectorAll(".tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => activateTab(btn.dataset.tab));
+      });
       sourceTypeEl.addEventListener("change", toggleSourceFields);
       jobsBody.addEventListener("click", onActionClick);
+      footageBody.addEventListener("click", onFootageActionClick);
 
       adminKeyEl.value = getKey();
       toggleSourceFields();
       loadJobs();
-      setInterval(loadJobs, 10000);
+      loadFootage();
+      setInterval(() => {
+        loadJobs();
+        loadFootage();
+      }, 10000);
     </script>
   </body>
 </html>

@@ -7,15 +7,29 @@ export async function uploadBytes(params: {
   body: Buffer;
   contentType: string;
 }): Promise<string> {
+  return uploadBytesToBucket({
+    bucket: VIDEO_ASSETS_BUCKET,
+    objectPath: params.objectPath,
+    body: params.body,
+    contentType: params.contentType,
+  });
+}
+
+export async function uploadBytesToBucket(params: {
+  bucket: string;
+  objectPath: string;
+  body: Buffer;
+  contentType: string;
+}): Promise<string> {
   const supabase = getSupabaseAdmin();
   const { error } = await supabase.storage
-    .from(VIDEO_ASSETS_BUCKET)
+    .from(params.bucket)
     .upload(params.objectPath, params.body, {
       contentType: params.contentType,
       upsert: true,
     });
   if (error) throw new Error(`Storage upload failed: ${error.message}`);
-  return formatStorageRef(VIDEO_ASSETS_BUCKET, params.objectPath);
+  return formatStorageRef(params.bucket, params.objectPath);
 }
 
 export async function downloadStorageObject(
