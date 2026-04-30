@@ -21,7 +21,7 @@ if (!ADMIN_KEY) {
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 const __dirname = dirname(fileURLToPath(import.meta.url));
-app.use(express.static(join(__dirname, "public")));
+app.use(express.static(join(process.cwd(), "src", "admin", "public")));
 
 const corsOrigins = env.adminCorsOrigins();
 if (corsOrigins.length) {
