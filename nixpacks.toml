@@ -1,2 +1,2 @@
 [phases.setup]
-aptPkgs = ["ffmpeg", "fonts-noto-cjk", "libass9"]
+aptPkgs = ["ffmpeg", "fonts-noto", "fonts-thai-tlwg", "libass9"]
