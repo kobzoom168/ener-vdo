@@ -37,6 +37,7 @@ async function processJob(job: VideoJobRow): Promise<void> {
     mp3,
     srtUtf8: srtBuf.toString("utf8"),
     backgroundVideoBuffer,
+    subtitleFontSize: job.subtitle_fontsize ?? undefined,
   });
 
   const videoRef = await uploadBytes({

@@ -210,6 +210,13 @@
           actions.push(`<button data-action="approve" data-id="${job.id}">Approve</button>`);
         }
         if (job.status === "failed" || job.status === "ready_review") {
+          const fs = Number.isFinite(Number(job.subtitle_fontsize))
+            ? Math.min(30, Math.max(6, Number(job.subtitle_fontsize)))
+            : 8;
+          actions.push(
+            `<input type="range" min="6" max="30" value="${fs}" style="width:80px" title="Font size" data-font-slider-for="${job.id}" oninput="this.nextElementSibling.textContent=this.value">`
+          );
+          actions.push(`<span style="color:#aaa;font-size:12px">${fs}</span>`);
           actions.push(`<button data-action="retry" data-id="${job.id}">Retry</button>`);
         }
         actions.push(`<button data-action="script" data-id="${job.id}">Script</button>`);
@@ -262,9 +269,14 @@
             await api(`/admin/video-jobs/${id}/approve`, { method: "PATCH" });
             await loadJobs();
           } else if (action === "retry") {
+            const slider = jobsBody.querySelector(`input[data-font-slider-for="${id}"]`);
+            const sliderValue = slider ? Number.parseInt(slider.value, 10) : 8;
             await api(`/admin/video-jobs/${id}/retry`, {
               method: "PATCH",
-              body: JSON.stringify({ from: "queued" }),
+              body: JSON.stringify({
+                from: "queued",
+                subtitle_fontsize: Number.isFinite(sliderValue) ? sliderValue : 8,
+              }),
             });
             await loadJobs();
           } else if (action === "script") {

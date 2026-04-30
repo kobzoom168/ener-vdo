@@ -27,10 +27,10 @@ function escapePathForSubtitlesFilter(p: string): string {
   return n.replace(/'/g, "'\\''");
 }
 
-function subtitlesFilterFromSrtPath(srtPath: string): string {
+function subtitlesFilterFromSrtPath(srtPath: string, fontSize: number): string {
   const srt = escapePathForSubtitlesFilter(srtPath);
   const style =
-    `Alignment=2,MarginV=60,MarginL=60,MarginR=60,Fontsize=${env.subtitleFontSize()},Bold=1,Outline=2,Shadow=1,PrimaryColour=&Hffffff&,OutlineColour=&H000000&,WrapStyle=2`;
+    `Alignment=2,MarginV=60,MarginL=60,MarginR=60,Fontsize=${fontSize},Bold=1,Outline=2,Shadow=1,PrimaryColour=&Hffffff&,OutlineColour=&H000000&,WrapStyle=2`;
   return `subtitles='${srt}':charenc=UTF-8:force_style='${style}'`;
 }
 
@@ -55,8 +55,13 @@ export async function renderVerticalBrandedMp4(params: {
   srtPath: string;
   outPath: string;
   backgroundVideoPath?: string;
+  subtitleFontSize?: number;
 }): Promise<void> {
-  const sub = subtitlesFilterFromSrtPath(params.srtPath);
+  const fontSize = params.subtitleFontSize ?? env.subtitleFontSize();
+  const sub = subtitlesFilterFromSrtPath(
+    params.srtPath,
+    fontSize
+  );
 
   await new Promise<void>((resolve, reject) => {
     const cmd = ffmpeg();
@@ -102,6 +107,7 @@ export async function renderVerticalBrandedMp4FromBuffers(params: {
   mp3: Buffer;
   srtUtf8: string;
   backgroundVideoBuffer?: Buffer;
+  subtitleFontSize?: number;
 }): Promise<Buffer> {
   const dir = await mkdtemp(join(tmpdir(), "ener-vdo-"));
   try {
@@ -120,6 +126,7 @@ export async function renderVerticalBrandedMp4FromBuffers(params: {
       srtPath,
       outPath,
       backgroundVideoPath,
+      subtitleFontSize: params.subtitleFontSize,
     });
     return await readFile(outPath);
   } finally {

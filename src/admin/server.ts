@@ -147,6 +147,10 @@ app.patch("/admin/video-jobs/:id/retry", requireAdmin, async (req, res) => {
     }
 
     const from = typeof req.body?.from === "string" ? req.body.from : "queued";
+    const subtitle_fontsize =
+      typeof req.body?.subtitle_fontsize === "number"
+        ? Math.min(30, Math.max(6, req.body.subtitle_fontsize))
+        : null;
     if (from !== "queued") {
       res.status(400).json({ error: "from must be 'queued' (only supported reset)" });
       return;
@@ -171,6 +175,7 @@ app.patch("/admin/video-jobs/:id/retry", requireAdmin, async (req, res) => {
       voice_url: null,
       subtitle_url: null,
       video_url: null,
+      ...(subtitle_fontsize !== null ? { subtitle_fontsize } : {}),
     });
     res.json({ ok: true, id, status: "queued" });
   } catch (e) {
