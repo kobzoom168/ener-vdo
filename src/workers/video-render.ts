@@ -3,6 +3,7 @@ import {
   findActiveFootageClipByPriority,
   getActiveFootageClipById,
 } from "../lib/footageClipsDb.js";
+import { maybeConcatVisualSupplements } from "../lib/applyVisualSupplementsToRender.js";
 import { renderVerticalBrandedMp4FromBuffers } from "../lib/ffmpegVerticalRender.js";
 import {
   finalVideoObjectKey,
@@ -153,12 +154,17 @@ async function processJob(job: VideoJobRow): Promise<void> {
     }
   }
 
-  const mp4 = await renderVerticalBrandedMp4FromBuffers({
+  const mainMp4 = await renderVerticalBrandedMp4FromBuffers({
     mp3,
     srtUtf8: srtBuf.toString("utf8"),
     backgroundVideoBuffer,
     enableAmbientAudio,
     subtitleFontSize: job.subtitle_fontsize ?? undefined,
+  });
+
+  const mp4 = await maybeConcatVisualSupplements({
+    jobId: job.id,
+    mainMp4Buffer: mainMp4,
   });
 
   const videoRef = await uploadBytes({

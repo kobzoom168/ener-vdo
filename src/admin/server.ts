@@ -16,9 +16,21 @@ import {
   listFootageClips,
   updateFootageClip,
 } from "../lib/footageClipsDb.js";
-import { createSignedUrlForRef } from "../lib/signedPreviewUrl.js";
+import {
+  createSignedUrlForObject,
+  createSignedUrlForRef,
+} from "../lib/signedPreviewUrl.js";
+import { generateVisualAsset } from "../lib/visualAssetGenerator.js";
+import {
+  getVisualAssetById,
+  insertVisualAssetLinkedToJob,
+  isVisualAssetStatus,
+  isVisualAssetType,
+  isVisualInsertPosition,
+  listJobVisualAssets,
+  updateVisualAsset,
+} from "../lib/visualAssetsDb.js";
 import { getSupabaseAdmin } from "../lib/supabaseAdmin.js";
-import { createSignedUrlForObject } from "../lib/signedPreviewUrl.js";
 import { VIDEO_ASSETS_BUCKET } from "../lib/videoJobTypes.js";
 import { uploadBytesToBucket } from "../lib/storageUpload.js";
 import type { VideoJobSourceType } from "../lib/videoJobTypes.js";
@@ -143,6 +155,182 @@ app.patch("/admin/video-jobs/:id/footage", requireAdmin, async (req, res) => {
     }
     await updateVideoJob(id, { footage_clip_id });
     res.json({ ok: true, id, footage_clip_id });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+function visualAssetPngPath(visualAssetId: string): string {
+  return `visual-assets/${visualAssetId}/asset.png`;
+}
+
+app.post("/admin/video-jobs/:id/visual-assets", requireAdmin, async (req, res) => {
+  try {
+    const videoJobId = req.params.id;
+    const job = await getVideoJobById(videoJobId);
+    if (!job) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const asset_type = req.body?.asset_type;
+    const prompt_text =
+      typeof req.body?.prompt_text === "string" ? req.body.prompt_text.trim() : "";
+    const insert_position = req.body?.insert_position;
+    if (!isVisualAssetType(String(asset_type))) {
+      res.status(400).json({ error: "Invalid asset_type" });
+      return;
+    }
+    if (!prompt_text) {
+      res.status(400).json({ error: "prompt_text required" });
+      return;
+    }
+    if (!isVisualInsertPosition(String(insert_position))) {
+      res.status(400).json({ error: "Invalid insert_position" });
+      return;
+    }
+    const duration_sec =
+      typeof req.body?.duration_sec === "number" && Number.isFinite(req.body.duration_sec)
+        ? Math.min(30, Math.max(0.5, req.body.duration_sec))
+        : 3;
+    const sort_order =
+      typeof req.body?.sort_order === "number" && Number.isFinite(req.body.sort_order)
+        ? Math.floor(req.body.sort_order)
+        : 0;
+    const item = await insertVisualAssetLinkedToJob({
+      video_job_id: videoJobId,
+      asset_type,
+      prompt_text,
+      insert_position,
+      duration_sec,
+      sort_order,
+    });
+    res.status(201).json({ item });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get("/admin/video-jobs/:id/visual-assets", requireAdmin, async (req, res) => {
+  try {
+    const videoJobId = req.params.id;
+    const job = await getVideoJobById(videoJobId);
+    if (!job) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const items = await listJobVisualAssets(videoJobId);
+    res.json({ items });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.patch("/admin/visual-assets/:id", requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const existing = await getVisualAssetById(id);
+    if (!existing) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const patch: Parameters<typeof updateVisualAsset>[1] = {};
+    if (typeof req.body?.prompt_text === "string") {
+      patch.prompt_text = req.body.prompt_text.trim();
+    }
+    if (typeof req.body?.status === "string") {
+      if (!isVisualAssetStatus(req.body.status)) {
+        res.status(400).json({ error: "Invalid status" });
+        return;
+      }
+      patch.status = req.body.status;
+    }
+    if (typeof req.body?.asset_type === "string") {
+      if (!isVisualAssetType(req.body.asset_type)) {
+        res.status(400).json({ error: "Invalid asset_type" });
+        return;
+      }
+      patch.asset_type = req.body.asset_type;
+    }
+    if (Object.keys(patch).length === 0) {
+      res.status(400).json({ error: "No valid fields to update" });
+      return;
+    }
+    const updated = await updateVisualAsset(id, patch);
+    res.json({ visual_asset: updated });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.patch("/admin/visual-assets/:id/reject", requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const existing = await getVisualAssetById(id);
+    if (!existing) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const updated = await updateVisualAsset(id, { status: "rejected" });
+    res.json({ visual_asset: updated });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post("/admin/visual-assets/:id/generate", requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const existing = await getVisualAssetById(id);
+    if (!existing) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    await updateVisualAsset(id, { status: "generating", error_message: null });
+    try {
+      const png = await generateVisualAsset(existing);
+      const storage_bucket = VIDEO_ASSETS_BUCKET;
+      const storage_path = visualAssetPngPath(id);
+      await uploadBytesToBucket({
+        bucket: storage_bucket,
+        objectPath: storage_path,
+        body: png,
+        contentType: "image/png",
+      });
+      const updated = await updateVisualAsset(id, {
+        status: "ready",
+        storage_bucket,
+        storage_path,
+        generation_provider: "placeholder_png",
+        error_message: null,
+      });
+      res.json({ visual_asset: updated });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await updateVisualAsset(id, { status: "failed", error_message: msg });
+      res.status(500).json({ error: msg });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get("/admin/visual-assets/:id/preview", requireAdmin, async (req, res) => {
+  try {
+    const asset = await getVisualAssetById(req.params.id);
+    if (!asset) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    if (!asset.storage_bucket || !asset.storage_path) {
+      res.status(409).json({ error: "Asset has no storage object yet" });
+      return;
+    }
+    const preview_url = await createSignedUrlForObject(
+      asset.storage_bucket,
+      asset.storage_path,
+      3600
+    );
+    res.json({ preview_url });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

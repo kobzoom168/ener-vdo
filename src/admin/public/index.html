@@ -90,6 +90,35 @@
         table { font-size: 12px; }
         input, select { min-width: 180px; }
       }
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.65);
+        display: none;
+        z-index: 50;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      .modal-overlay.open {
+        display: flex;
+      }
+      .modal-panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        max-width: 760px;
+        width: 100%;
+        max-height: 90vh;
+        overflow: auto;
+        padding: 16px;
+      }
+      .textarea {
+        width: 100%;
+        min-width: 0;
+        min-height: 88px;
+        resize: vertical;
+      }
     </style>
   </head>
   <body>
@@ -208,6 +237,61 @@
       </section>
     </div>
 
+    <div id="visualsOverlay" class="modal-overlay" aria-hidden="true">
+      <div class="modal-panel" role="dialog" aria-labelledby="visualsTitle">
+        <h2 id="visualsTitle">Visual assets · Job <span id="visualsJobLabel"></span></h2>
+        <p style="color: var(--muted); font-size: 13px; margin: 0 0 12px">
+          ภาพประกอบเชิงบรรยากาศ — ไม่แทนที่ footage จริง
+        </p>
+        <div class="row" style="margin-bottom: 8px">
+          <select id="vaAssetType">
+            <option value="opening_card">opening_card</option>
+            <option value="transition_card">transition_card</option>
+            <option value="explainer_card">explainer_card</option>
+            <option value="cta_card">cta_card</option>
+            <option value="product_support">product_support</option>
+            <option value="motion_background">motion_background</option>
+          </select>
+          <select id="vaInsertPos">
+            <option value="intro">intro</option>
+            <option value="middle">middle</option>
+            <option value="before_cta">before_cta</option>
+            <option value="outro">outro</option>
+          </select>
+          <label style="color: var(--muted); font-size: 13px"
+            >duration_sec
+            <input id="vaDuration" type="number" step="0.5" value="3" style="width: 72px" />
+          </label>
+          <label style="color: var(--muted); font-size: 13px"
+            >sort
+            <input id="vaSort" type="number" value="0" style="width: 64px" />
+          </label>
+        </div>
+        <textarea id="vaPrompt" class="textarea" placeholder="prompt_text (ข้อความหลักบนการ์ด)"></textarea>
+        <div class="row" style="margin-top: 10px">
+          <button type="button" id="vaAddBtn">Add visual</button>
+          <button type="button" id="vaRefreshBtn">Refresh list</button>
+          <button type="button" id="vaCloseBtn">Close</button>
+        </div>
+        <div id="vaMsg" class="msg"></div>
+        <div class="card" style="margin-top: 14px; border: none; padding: 0">
+          <table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Position</th>
+                <th>Dur</th>
+                <th>Status</th>
+                <th>Prompt</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="vaBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <script>
       const LS_KEY = "ener_vdo_admin_key";
       const apiBase = window.location.origin;
@@ -230,6 +314,7 @@
       const footageTypeFilterEl = document.getElementById("footageTypeFilter");
       const footageTempleFilterEl = document.getElementById("footageTempleFilter");
       const expandedScripts = new Set();
+      let visualsJobId = null;
 
       function statusClass(status) {
         return String(status || "").replace(/\s+/g, "_");
@@ -311,6 +396,7 @@
           actions.push(`<button data-action="retry" data-id="${job.id}">Retry</button>`);
         }
         actions.push(`<button data-action="set-footage" data-id="${job.id}">Set Footage</button>`);
+        actions.push(`<button data-action="visuals" data-id="${job.id}">Visuals</button>`);
         actions.push(`<button data-action="script" data-id="${job.id}">Script</button>`);
         return `<div class="actions">${actions.join("")}</div>`;
       }
@@ -461,6 +547,8 @@
               body: JSON.stringify({ footage_clip_id: value }),
             });
             await loadJobs();
+          } else if (action === "visuals") {
+            openVisualsPanel(id);
           }
         } catch (e) {
           alert(e.message || String(e));
@@ -501,6 +589,121 @@
       document.getElementById("createBtn").addEventListener("click", createJob);
       document.getElementById("uploadFootageBtn").addEventListener("click", uploadFootage);
       document.getElementById("refreshFootageBtn").addEventListener("click", loadFootage);
+      const visualsOverlay = document.getElementById("visualsOverlay");
+      const visualsJobLabel = document.getElementById("visualsJobLabel");
+      const vaMsg = document.getElementById("vaMsg");
+      const vaBody = document.getElementById("vaBody");
+      const vaAssetType = document.getElementById("vaAssetType");
+      const vaInsertPos = document.getElementById("vaInsertPos");
+      const vaDuration = document.getElementById("vaDuration");
+      const vaSort = document.getElementById("vaSort");
+      const vaPrompt = document.getElementById("vaPrompt");
+      function setVaMsg(t) {
+        vaMsg.textContent = t || "";
+      }
+      function closeVisualsPanel() {
+        visualsOverlay.classList.remove("open");
+        visualsOverlay.setAttribute("aria-hidden", "true");
+        visualsJobId = null;
+      }
+      function openVisualsPanel(jobId) {
+        visualsJobId = jobId;
+        visualsJobLabel.textContent = short(jobId, 8);
+        visualsOverlay.classList.add("open");
+        visualsOverlay.setAttribute("aria-hidden", "false");
+        setVaMsg("");
+        loadVisualsList();
+      }
+      function renderVisualRows(items) {
+        const rows = (items || []).map((row) => {
+          const a = row.visual_asset || {};
+          const st = a.status || "-";
+          const actions = [];
+          actions.push(
+            `<button type="button" data-va="gen" data-aid="${a.id}">Generate</button>`
+          );
+          if (a.status === "ready") {
+            actions.push(
+              `<button type="button" data-va="prev" data-aid="${a.id}">Preview</button>`
+            );
+          }
+          actions.push(
+            `<button type="button" data-va="rej" data-aid="${a.id}">Reject</button>`
+          );
+          return `<tr>
+            <td>${a.asset_type || "-"}</td>
+            <td>${row.insert_position || "-"}</td>
+            <td>${row.duration_sec ?? "-"}</td>
+            <td><span class="status ${statusClass(st)}">${st}</span></td>
+            <td>${short(a.prompt_text, 42)}</td>
+            <td class="actions">${actions.join(" ")}</td>
+          </tr>`;
+        });
+        vaBody.innerHTML = rows.length ? rows.join("") : `<tr><td colspan="6">ยังไม่มี visual</td></tr>`;
+      }
+      async function loadVisualsList() {
+        if (!visualsJobId) return;
+        try {
+          const data = await api(`/admin/video-jobs/${visualsJobId}/visual-assets`);
+          renderVisualRows(data.items || []);
+        } catch (e) {
+          setVaMsg(e.message || String(e));
+        }
+      }
+      async function addVisualAsset() {
+        if (!visualsJobId) return;
+        try {
+          const body = {
+            asset_type: vaAssetType.value,
+            insert_position: vaInsertPos.value,
+            prompt_text: vaPrompt.value.trim(),
+            duration_sec: Number.parseFloat(vaDuration.value) || 3,
+            sort_order: Number.parseInt(vaSort.value, 10) || 0,
+          };
+          if (!body.prompt_text) throw new Error("กรุณาใส่ prompt_text");
+          await api(`/admin/video-jobs/${visualsJobId}/visual-assets`, {
+            method: "POST",
+            body: JSON.stringify(body),
+          });
+          vaPrompt.value = "";
+          setVaMsg("เพิ่ม visual แล้ว");
+          await loadVisualsList();
+        } catch (e) {
+          alert(e.message || String(e));
+        }
+      }
+      async function onVisualsTableClick(ev) {
+        const btn = ev.target.closest("button[data-va]");
+        if (!btn) return;
+        const aid = btn.dataset.aid;
+        const kind = btn.dataset.va;
+        try {
+          if (kind === "gen") {
+            await api(`/admin/visual-assets/${aid}/generate`, {
+              method: "POST",
+              body: JSON.stringify({}),
+            });
+            setVaMsg("Generate เสร็จ");
+            await loadVisualsList();
+          } else if (kind === "prev") {
+            const data = await api(`/admin/visual-assets/${aid}/preview`);
+            if (data.preview_url) window.open(data.preview_url, "_blank");
+          } else if (kind === "rej") {
+            await api(`/admin/visual-assets/${aid}/reject`, { method: "PATCH" });
+            setVaMsg("Reject แล้ว");
+            await loadVisualsList();
+          }
+        } catch (e) {
+          alert(e.message || String(e));
+        }
+      }
+      document.getElementById("vaAddBtn").addEventListener("click", addVisualAsset);
+      document.getElementById("vaRefreshBtn").addEventListener("click", loadVisualsList);
+      document.getElementById("vaCloseBtn").addEventListener("click", closeVisualsPanel);
+      visualsOverlay.addEventListener("click", (ev) => {
+        if (ev.target === visualsOverlay) closeVisualsPanel();
+      });
+      vaBody.addEventListener("click", onVisualsTableClick);
       document.querySelectorAll(".tab-btn").forEach((btn) => {
         btn.addEventListener("click", () => activateTab(btn.dataset.tab));
       });
