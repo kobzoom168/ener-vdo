@@ -84,8 +84,25 @@
         color: #d9d9ea;
       }
       .msg { margin-top: 8px; color: #9ad2ff; font-size: 13px; min-height: 18px; }
-      .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+      .tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
       .tab-btn.active { background: #2f6dff; }
+      .tab-dev-badge {
+        display: inline-block;
+        margin-left: 8px;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        vertical-align: middle;
+        background: linear-gradient(180deg, #e8c84a 0%, #b8922a 100%);
+        color: #1a1408;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset;
+      }
+      .tab-btn.active .tab-dev-badge {
+        background: linear-gradient(180deg, #ffe08a 0%, #d4a84a 100%);
+        color: #1a1408;
+      }
       .section { display: none; }
       .section.active { display: block; }
       @media (max-width: 900px) {
@@ -412,8 +429,46 @@
         opacity: 0.45;
         cursor: not-allowed;
       }
-      #batchPlaceholderMsg {
-        margin-top: 10px;
+      .batch-workflow-notice {
+        display: none;
+        margin: 20px auto 0;
+        max-width: 560px;
+        text-align: left;
+        padding: 20px 22px;
+        border-radius: 14px;
+        border: 2px solid #c9a227;
+        background: linear-gradient(180deg, rgba(212, 168, 40, 0.22) 0%, rgba(40, 32, 8, 0.55) 100%);
+        box-shadow: 0 0 0 1px rgba(255, 220, 120, 0.12) inset, 0 8px 28px rgba(0, 0, 0, 0.35);
+      }
+      .batch-workflow-notice.batch-workflow-notice--visible {
+        display: block;
+      }
+      .batch-workflow-notice p {
+        margin: 0 0 12px;
+        font-size: 16px;
+        line-height: 1.55;
+        color: #f8edd0;
+        font-weight: 600;
+      }
+      .batch-workflow-notice p:last-of-type {
+        margin-bottom: 0;
+      }
+      .btn-batch-to-jobs {
+        margin-top: 16px;
+        width: 100%;
+        padding: 14px 18px;
+        font-size: 15px;
+        font-weight: 700;
+        border-radius: 12px;
+        cursor: pointer;
+        border: 2px solid #d4a428;
+        background: rgba(30, 24, 8, 0.6);
+        color: #ffe9a8;
+      }
+      .btn-batch-to-jobs:hover {
+        background: rgba(212, 164, 40, 0.2);
+        border-color: #e8c050;
+        color: #fff;
       }
       .qc-snippet {
         font-size: 11px;
@@ -466,7 +521,9 @@
         <div id="message" class="msg"></div>
       </div>
       <div class="tabs">
-        <button class="tab-btn active" data-tab="batchSection">สร้างชุดคลิปใหม่</button>
+        <button class="tab-btn active" data-tab="batchSection">
+          สร้างชุดคลิปใหม่<span class="tab-dev-badge">กำลังพัฒนา</span>
+        </button>
         <button class="tab-btn" data-tab="jobsSection">คลิปของฉัน</button>
         <button class="tab-btn" data-tab="footageSection">คลังวิดีโอพื้นหลัง</button>
       </div>
@@ -584,10 +641,16 @@
 
         <div class="card workflow-step workflow-cta-wrap">
           <button type="button" id="batchCreateBtn" class="btn-batch-primary">ให้ AI สร้างคลิป</button>
-          <p class="va-hint" style="max-width: 520px; margin: 0 auto">
-            AI จะวิเคราะห์วิดีโอ คิดหัวข้อ เขียนสคริปต์ เลือกฉาก สร้างภาพเสริม สร้างเสียง ใส่ซับ และเตรียมคลิปให้ตรวจ
+          <p class="va-hint" style="max-width: 520px; margin: 12px auto 0">
+            ยังไม่สร้างคลิปจริงในเวอร์ชันนี้ — ขั้นถัดไปคือเชื่อม Content Session API
           </p>
-          <div id="batchPlaceholderMsg" class="msg"></div>
+          <div id="batchWorkflowNotice" class="batch-workflow-notice" aria-live="polite">
+            <p>หน้านี้เป็นตัวอย่าง Workflow สำหรับ Batch 10 คลิป ยังไม่ได้เชื่อมระบบสร้างคลิปจริง</p>
+            <p>ตอนนี้ให้ใช้แท็บ &lsquo;คลิปของฉัน&rsquo; เพื่อสร้างคลิปจริงแบบทีละงาน</p>
+            <button type="button" class="btn-batch-to-jobs" id="batchGoToMyClipsBtn">
+              ไปสร้างคลิปจริงแบบทีละงาน
+            </button>
+          </div>
         </div>
 
         <div class="card workflow-step">
@@ -1486,7 +1549,8 @@
       const batchFileList = document.getElementById("batchFileList");
       const batchClipCount = document.getElementById("batchClipCount");
       const batchReviewGrid = document.getElementById("batchReviewGrid");
-      const batchPlaceholderMsg = document.getElementById("batchPlaceholderMsg");
+      const batchWorkflowNotice = document.getElementById("batchWorkflowNotice");
+      const batchGoToMyClipsBtn = document.getElementById("batchGoToMyClipsBtn");
       const batchCreateBtn = document.getElementById("batchCreateBtn");
 
       function addBatchFiles(fileList) {
@@ -1587,13 +1651,14 @@
         const el = document.getElementById(id);
         if (el) el.addEventListener("change", renderBatchPreviewCards);
       });
-      if (batchCreateBtn) {
+      if (batchCreateBtn && batchWorkflowNotice) {
         batchCreateBtn.addEventListener("click", () => {
-          if (batchPlaceholderMsg) {
-            batchPlaceholderMsg.textContent =
-              "หน้านี้พร้อมสำหรับ Batch Workflow แล้ว ขั้นถัดไปคือเชื่อม Content Session API";
-          }
+          batchWorkflowNotice.classList.add("batch-workflow-notice--visible");
+          batchWorkflowNotice.scrollIntoView({ behavior: "smooth", block: "nearest" });
         });
+      }
+      if (batchGoToMyClipsBtn) {
+        batchGoToMyClipsBtn.addEventListener("click", () => activateTab("jobsSection"));
       }
       renderBatchPreviewCards();
 
