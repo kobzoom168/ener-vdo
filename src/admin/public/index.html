@@ -229,6 +229,190 @@
         align-items: center;
         gap: 8px;
       }
+      .workflow-hero h2 {
+        font-size: 1.65rem;
+        margin-bottom: 8px;
+      }
+      .workflow-lead {
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.5;
+        margin: 0;
+      }
+      .workflow-step h3 {
+        margin: 0 0 14px;
+        font-size: 1.08rem;
+        color: #ececf4;
+        font-weight: 700;
+      }
+      .batch-drop {
+        border: 2px dashed var(--line);
+        border-radius: 16px;
+        padding: 44px 20px;
+        text-align: center;
+        cursor: pointer;
+        background: #16162a;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .batch-drop:hover,
+      .batch-drop.batch-drop--active {
+        border-color: #5c9eff;
+        background: #1a2540;
+      }
+      .batch-drop-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .batch-drop-sub {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .batch-file-list {
+        list-style: none;
+        margin: 12px 0 0;
+        padding: 0;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .batch-file-list li {
+        padding: 4px 0;
+        border-bottom: 1px solid #2a2a44;
+      }
+      .batch-field {
+        width: 100%;
+        min-width: 0;
+        margin-bottom: 10px;
+      }
+      .chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+        align-items: center;
+      }
+      .chip {
+        min-width: 52px;
+        padding: 12px 18px;
+        font-weight: 700;
+        border-radius: 10px;
+      }
+      .chip.chip--on {
+        background: #2f6dff;
+        border-color: #5c9eff;
+      }
+      .batch-count-custom {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .batch-count-custom input {
+        width: 88px;
+        min-width: 88px;
+      }
+      .choice-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .choice-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: #18182c;
+        cursor: pointer;
+      }
+      .choice-card:hover {
+        border-color: #5a5a8a;
+      }
+      .choice-card input {
+        margin-top: 4px;
+        min-width: auto;
+      }
+      .choice-card span {
+        font-size: 15px;
+      }
+      .choice-card small {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 4px;
+      }
+      .workflow-cta-wrap {
+        text-align: center;
+      }
+      .btn-batch-primary {
+        width: 100%;
+        max-width: 440px;
+        margin: 0 auto 12px;
+        display: block;
+        padding: 18px 22px;
+        font-size: 1.18rem;
+        font-weight: 800;
+        border: none;
+        border-radius: 14px;
+        cursor: pointer;
+        color: #fff;
+        background: linear-gradient(165deg, #4d8aff 0%, #2a4aa0 100%);
+        box-shadow: 0 8px 24px rgba(45, 110, 255, 0.35);
+      }
+      .btn-batch-primary:hover {
+        opacity: 0.95;
+        filter: brightness(1.05);
+      }
+      .btn-batch-secondary {
+        margin-top: 8px;
+        padding: 12px 20px;
+        font-size: 14px;
+        border-radius: 10px;
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .batch-review-grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+        margin-bottom: 16px;
+      }
+      .batch-review-card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px;
+        background: linear-gradient(180deg, #1e1e36 0%, #18182c 100%);
+      }
+      .batch-review-card h4 {
+        margin: 0 0 6px;
+        font-size: 15px;
+      }
+      .batch-review-card .card-title {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 10px;
+      }
+      .batch-review-card .card-meta {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 12px;
+        line-height: 1.45;
+      }
+      .batch-review-card .card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .batch-review-card button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      #batchPlaceholderMsg {
+        margin-top: 10px;
+      }
     </style>
   </head>
   <body>
@@ -244,13 +428,145 @@
         <div id="message" class="msg"></div>
       </div>
       <div class="tabs">
-        <button class="tab-btn active" data-tab="jobsSection">Video Jobs</button>
-        <button class="tab-btn" data-tab="footageSection">Footage Library</button>
+        <button class="tab-btn active" data-tab="batchSection">สร้างชุดคลิปใหม่</button>
+        <button class="tab-btn" data-tab="jobsSection">คลิปของฉัน</button>
+        <button class="tab-btn" data-tab="footageSection">คลังวิดีโอพื้นหลัง</button>
       </div>
 
-      <section id="jobsSection" class="section active">
+      <section id="batchSection" class="section active">
+        <div class="card workflow-hero">
+          <h2>สร้างชุดคลิปใหม่</h2>
+          <p class="workflow-lead">
+            อัปโหลดวิดีโอจากทริปหนึ่งวัน บอกว่าไปไหนมา แล้วกดปุ่มเดียวให้ AI ช่วยแตกเป็นหลายคลิปพร้อมตรวจก่อนโพสต์
+          </p>
+        </div>
+
+        <div class="card workflow-step">
+          <h3>1. อัปโหลดวิดีโอ</h3>
+          <div class="batch-drop" id="batchDropZone" role="button" tabindex="0">
+            <div class="batch-drop-title">ลากวิดีโอที่ถ่ายมาวางที่นี่</div>
+            <div class="batch-drop-sub">หรือกดเลือกไฟล์ — รองรับหลายไฟล์ (เก็บในเบราว์เซอร์ชั่วคราว จนกว่าระบบ Batch จะพร้อม)</div>
+          </div>
+          <input type="file" id="batchFileInput" accept="video/*" multiple hidden />
+          <ul class="batch-file-list" id="batchFileList"></ul>
+        </div>
+
+        <div class="card workflow-step">
+          <h3>2. วันนี้ไปไหนมา</h3>
+          <input
+            type="text"
+            id="batchLocationName"
+            class="batch-field"
+            placeholder="ชื่อวัด / สถานที่"
+          />
+          <label style="display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px"
+            >วันที่ถ่าย</label
+          >
+          <input type="date" id="batchSessionDate" class="batch-field" style="max-width: 220px" />
+          <label style="display: block; color: var(--muted); font-size: 13px; margin: 10px 0 6px"
+            >เล่าให้ AI ฟังสั้น ๆ</label
+          >
+          <textarea
+            id="batchTripNotes"
+            class="textarea"
+            placeholder="เช่น วันนี้ไปวัดพระแก้ว ถ่ายหน้าวัด จุดไหว้ คนไหว้ บรรยากาศ และแผงเครื่องรางท้ายวัด"
+          ></textarea>
+        </div>
+
+        <div class="card workflow-step">
+          <h3>3. อยากได้กี่คลิป</h3>
+          <div class="chip-row" id="batchCountChips">
+            <button type="button" class="chip" data-batch-count="3">3</button>
+            <button type="button" class="chip" data-batch-count="5">5</button>
+            <button type="button" class="chip chip--on" data-batch-count="10">10</button>
+            <button type="button" class="chip" data-batch-count="15">15</button>
+          </div>
+          <div class="batch-count-custom">
+            <span>หรือกรอกเอง</span>
+            <input type="number" id="batchClipCount" min="1" max="50" value="10" />
+            <span>คลิป</span>
+          </div>
+        </div>
+
+        <div class="card workflow-step">
+          <h3>4. อยากได้คลิปแนวไหน</h3>
+          <p class="va-hint" style="margin: 0 0 10px">เลือกได้หลายแบบ หรือให้ AI เลือกให้</p>
+          <div class="choice-grid">
+            <label class="choice-card">
+              <input type="checkbox" id="batchStyleAi" checked />
+              <span>ให้ AI คิดเอง<small>แนะนำ — ระบบจะดูคลิปแล้วจัดแนวให้เหมาะกับเนื้อหา</small></span>
+            </label>
+            <label class="choice-card">
+              <input type="checkbox" id="batchStyleTour" />
+              <span>พาเที่ยววัด / สถานที่</span>
+            </label>
+            <label class="choice-card">
+              <input type="checkbox" id="batchStyleWorship" />
+              <span>จุดไหว้ / ขอพร</span>
+            </label>
+            <label class="choice-card">
+              <input type="checkbox" id="batchStyleAmulet" />
+              <span>เครื่องราง / พระ</span>
+            </label>
+            <label class="choice-card">
+              <input type="checkbox" id="batchStyleSell" />
+              <span>ขายของ / โปรโมต</span>
+            </label>
+            <label class="choice-card">
+              <input type="checkbox" id="batchStyleStory" />
+              <span>ความรู้ / เล่าเรื่อง</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card workflow-step">
+          <h3>5. จะโพสต์ไปที่ไหน</h3>
+          <div class="choice-grid">
+            <label class="choice-card">
+              <input type="checkbox" id="batchPubYt" checked />
+              <span>YouTube Shorts</span>
+            </label>
+            <label class="choice-card">
+              <input type="checkbox" id="batchPubTt" />
+              <span>TikTok</span>
+            </label>
+            <label class="choice-card">
+              <input type="checkbox" id="batchPubFb" />
+              <span>Facebook Reels</span>
+            </label>
+            <label class="choice-card">
+              <input type="checkbox" id="batchPubIg" />
+              <span>Instagram Reels</span>
+            </label>
+          </div>
+          <p class="va-hint" style="margin-top: 12px">
+            ช่วงแรกระบบจะสร้างคลิปและรออนุมัติ ก่อนโพสต์จริง
+          </p>
+        </div>
+
+        <div class="card workflow-step workflow-cta-wrap">
+          <button type="button" id="batchCreateBtn" class="btn-batch-primary">ให้ AI สร้างคลิป</button>
+          <p class="va-hint" style="max-width: 520px; margin: 0 auto">
+            AI จะวิเคราะห์วิดีโอ คิดหัวข้อ เขียนสคริปต์ เลือกฉาก สร้างภาพเสริม สร้างเสียง ใส่ซับ และเตรียมคลิปให้ตรวจ
+          </p>
+          <div id="batchPlaceholderMsg" class="msg"></div>
+        </div>
+
+        <div class="card workflow-step">
+          <h3>คลิปที่ระบบจะสร้าง</h3>
+          <p class="va-hint" style="margin: 0 0 12px">
+            ตัวอย่างหน้าตาหลัง AI ทำงาน — ปุ่มจะใช้งานได้เมื่อเชื่อม Batch API แล้ว
+          </p>
+          <div class="batch-review-grid" id="batchReviewGrid"></div>
+          <button type="button" class="btn-batch-secondary" id="batchApproveAllBtn" disabled>
+            อนุมัติทั้งหมด
+          </button>
+        </div>
+      </section>
+
+      <section id="jobsSection" class="section">
         <div class="card">
-          <h2>สร้าง Job ใหม่</h2>
+          <h2>สร้างคลิปทีละงาน (ขั้นสูง)</h2>
           <div class="row">
             <select id="sourceType">
               <option value="scan_result">scan_result</option>
@@ -268,7 +584,7 @@
         </div>
 
         <div class="card">
-          <h2>Jobs</h2>
+          <h2>รายการคลิป</h2>
           <table>
             <thead>
               <tr>
@@ -288,7 +604,7 @@
 
       <section id="footageSection" class="section">
         <div class="card">
-          <h2>Upload Footage</h2>
+          <h2>อัปโหลดไปคลังพื้นหลัง</h2>
           <div class="row">
             <input id="footageFile" type="file" accept="video/*" />
             <input id="footageTempleName" placeholder="temple_name (optional)" />
@@ -993,6 +1309,124 @@
       });
       vaBody.addEventListener("click", onVisualsTableClick);
       vaBodyRejected.addEventListener("click", onVisualsTableClick);
+
+      let batchSelectedFiles = [];
+      const batchDropZone = document.getElementById("batchDropZone");
+      const batchFileInput = document.getElementById("batchFileInput");
+      const batchFileList = document.getElementById("batchFileList");
+      const batchClipCount = document.getElementById("batchClipCount");
+      const batchReviewGrid = document.getElementById("batchReviewGrid");
+      const batchPlaceholderMsg = document.getElementById("batchPlaceholderMsg");
+      const batchCreateBtn = document.getElementById("batchCreateBtn");
+
+      function addBatchFiles(fileList) {
+        if (!fileList || !fileList.length) return;
+        for (let i = 0; i < fileList.length; i++) {
+          const f = fileList[i];
+          if (f.type && f.type.startsWith("video/")) batchSelectedFiles.push(f);
+        }
+        renderBatchFileList();
+      }
+      function renderBatchFileList() {
+        if (!batchFileList) return;
+        batchFileList.textContent = "";
+        if (!batchSelectedFiles.length) return;
+        for (const f of batchSelectedFiles) {
+          const li = document.createElement("li");
+          li.textContent = `${f.name} · ${(f.size / 1024 / 1024).toFixed(1)} MB`;
+          batchFileList.appendChild(li);
+        }
+      }
+      function getBatchPublishSummary() {
+        const labels = [];
+        if (document.getElementById("batchPubYt")?.checked) labels.push("YouTube Shorts");
+        if (document.getElementById("batchPubTt")?.checked) labels.push("TikTok");
+        if (document.getElementById("batchPubFb")?.checked) labels.push("Facebook Reels");
+        if (document.getElementById("batchPubIg")?.checked) labels.push("Instagram Reels");
+        return labels.length ? labels.join(" · ") : "ยังไม่ได้เลือก";
+      }
+      function syncBatchCountChips() {
+        const n = parseInt(batchClipCount && batchClipCount.value, 10);
+        const v = Number.isFinite(n) ? String(Math.min(50, Math.max(1, n))) : "10";
+        document.querySelectorAll("#batchCountChips .chip").forEach((el) => {
+          el.classList.toggle("chip--on", el.dataset.batchCount === v);
+        });
+      }
+      function renderBatchPreviewCards() {
+        if (!batchReviewGrid || !batchClipCount) return;
+        let n = parseInt(batchClipCount.value, 10);
+        if (!Number.isFinite(n)) n = 10;
+        n = Math.min(50, Math.max(1, n));
+        batchClipCount.value = String(n);
+        syncBatchCountChips();
+        const pub = getBatchPublishSummary();
+        const parts = [];
+        for (let i = 1; i <= n; i++) {
+          parts.push(`<article class="batch-review-card">
+            <h4>คลิปที่ ${i}</h4>
+            <div class="card-title">AI จะคิดหัวข้อให้</div>
+            <div class="card-meta">สถานะ: รอสร้าง<br />โพสต์ไป: ${pub}</div>
+            <div class="card-actions">
+              <button type="button" disabled>ดูคลิป</button>
+              <button type="button" disabled>อนุมัติโพสต์</button>
+              <button type="button" disabled>แก้ใหม่</button>
+              <button type="button" disabled>ไม่ใช้คลิปนี้</button>
+            </div>
+          </article>`);
+        }
+        batchReviewGrid.innerHTML = parts.join("");
+      }
+      if (batchDropZone && batchFileInput) {
+        batchDropZone.addEventListener("click", () => batchFileInput.click());
+        batchDropZone.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            batchFileInput.click();
+          }
+        });
+        batchFileInput.addEventListener("change", () => {
+          addBatchFiles(batchFileInput.files);
+          batchFileInput.value = "";
+        });
+        ["dragenter", "dragover"].forEach((ev) => {
+          batchDropZone.addEventListener(ev, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            batchDropZone.classList.add("batch-drop--active");
+          });
+        });
+        batchDropZone.addEventListener("dragleave", () => {
+          batchDropZone.classList.remove("batch-drop--active");
+        });
+        batchDropZone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          batchDropZone.classList.remove("batch-drop--active");
+          addBatchFiles(e.dataTransfer.files);
+        });
+      }
+      document.querySelectorAll("#batchCountChips [data-batch-count]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (batchClipCount) batchClipCount.value = btn.dataset.batchCount;
+          renderBatchPreviewCards();
+        });
+      });
+      if (batchClipCount) {
+        batchClipCount.addEventListener("input", renderBatchPreviewCards);
+      }
+      ["batchPubYt", "batchPubTt", "batchPubFb", "batchPubIg"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("change", renderBatchPreviewCards);
+      });
+      if (batchCreateBtn) {
+        batchCreateBtn.addEventListener("click", () => {
+          if (batchPlaceholderMsg) {
+            batchPlaceholderMsg.textContent =
+              "หน้านี้พร้อมสำหรับ Batch Workflow แล้ว ขั้นถัดไปคือเชื่อม Content Session API";
+          }
+        });
+      }
+      renderBatchPreviewCards();
+
       document.querySelectorAll(".tab-btn").forEach((btn) => {
         btn.addEventListener("click", () => activateTab(btn.dataset.tab));
       });
