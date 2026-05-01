@@ -119,6 +119,116 @@
         min-height: 88px;
         resize: vertical;
       }
+      .va-hint {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.45;
+        margin: 6px 0 0;
+      }
+      .va-hint-strong {
+        color: #e8c96a;
+        font-size: 12px;
+        line-height: 1.45;
+        margin: 8px 0 0;
+        padding: 8px 10px;
+        background: #121225;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+      }
+      .va-presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .va-presets button {
+        font-size: 12px;
+        padding: 8px 10px;
+        min-width: 0;
+      }
+      .va-subheading {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        margin: 16px 0 8px;
+      }
+      .va-rejected-wrap {
+        margin-top: 20px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+      .va-rejected-wrap h3 {
+        margin: 0 0 8px;
+        font-size: 15px;
+        color: var(--muted);
+        font-weight: 700;
+      }
+      .va-pill {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .va-pill.va-queued {
+        background: #6b6b7a;
+        color: #fff;
+      }
+      .va-pill.va-generating {
+        background: #2f6dff;
+        color: #fff;
+      }
+      .va-pill.va-ready {
+        background: #2ecc71;
+        color: #111;
+      }
+      .va-pill.va-used {
+        background: #c9a227;
+        color: #111;
+      }
+      .va-pill.va-failed {
+        background: #c0392b;
+        color: #fff;
+      }
+      .va-pill.va-rejected {
+        background: #3d3d4f;
+        color: #9a9aad;
+      }
+      .va-row-muted {
+        opacity: 0.72;
+      }
+      .va-row-err {
+        font-size: 12px;
+        color: #ff8a8a;
+        margin-top: 4px;
+        white-space: pre-wrap;
+        max-width: 220px;
+      }
+      .va-btn-prev {
+        background: #1e6b3d;
+        border-color: #2ecc71;
+        font-weight: 700;
+      }
+      .va-btn-gen:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+      }
+      .va-muted {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .va-toggle-row {
+        margin-top: 12px;
+        align-items: center;
+      }
+      .va-toggle-row label {
+        color: var(--muted);
+        font-size: 13px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
     </style>
   </head>
   <body>
@@ -240,9 +350,21 @@
     <div id="visualsOverlay" class="modal-overlay" aria-hidden="true">
       <div class="modal-panel" role="dialog" aria-labelledby="visualsTitle">
         <h2 id="visualsTitle">Visual assets · Job <span id="visualsJobLabel"></span></h2>
-        <p style="color: var(--muted); font-size: 13px; margin: 0 0 12px">
+        <p style="color: var(--muted); font-size: 13px; margin: 0 0 8px">
           ภาพประกอบเชิงบรรยากาศ — ไม่แทนที่ footage จริง
         </p>
+        <p class="va-hint-strong">
+          หลังเพิ่มหรือ Generate visual แล้ว ต้องกด <strong>Retry</strong> ที่ Video Job
+          เพื่อ render คลิปใหม่ให้รวม visual เข้าไป
+        </p>
+        <p class="va-subheading" style="margin-top: 14px">คำเตรียมพร้อมใช้ (กดแล้วแก้ต่อได้)</p>
+        <div class="va-presets" id="vaPresetBar">
+          <button type="button" data-va-preset="intro_temple">Intro วัด / สถานที่</button>
+          <button type="button" data-va-preset="worship_spots">จุดไหว้สำคัญ</button>
+          <button type="button" data-va-preset="energy_meaning">ความหมายเชิงพลัง</button>
+          <button type="button" data-va-preset="amulet_row">แผงเครื่องราง</button>
+          <button type="button" data-va-preset="cta_scan">CTA Ener Scan</button>
+        </div>
         <div class="row" style="margin-bottom: 8px">
           <select id="vaAssetType">
             <option value="opening_card">opening_card</option>
@@ -267,14 +389,26 @@
             <input id="vaSort" type="number" value="0" style="width: 64px" />
           </label>
         </div>
-        <textarea id="vaPrompt" class="textarea" placeholder="prompt_text (ข้อความหลักบนการ์ด)"></textarea>
+        <textarea id="vaPrompt" class="textarea" placeholder="ข้อความหลักบนการ์ด (prompt)"></textarea>
+        <p class="va-hint">
+          แนะนำให้ใช้คำว่า <strong>ตามความเชื่อ</strong> / <strong>แนวพลัง</strong> /
+          <strong>ภาพประกอบเชิงบรรยากาศ</strong> และหลีกเลี่ยงคำฟันธง เช่น รวยแน่นอน หายป่วยแน่นอน แท้
+          100%
+        </p>
         <div class="row" style="margin-top: 10px">
-          <button type="button" id="vaAddBtn">Add visual</button>
-          <button type="button" id="vaRefreshBtn">Refresh list</button>
-          <button type="button" id="vaCloseBtn">Close</button>
+          <button type="button" id="vaAddBtn">เพิ่มลงรายการ</button>
+          <button type="button" id="vaRefreshBtn">รีเฟรชรายการ</button>
+          <button type="button" id="vaCloseBtn">ปิด</button>
+        </div>
+        <div class="row va-toggle-row">
+          <label
+            ><input type="checkbox" id="vaShowRejected" /> แสดงรายการที่ถูก reject (Rejected
+            assets)</label
+          >
         </div>
         <div id="vaMsg" class="msg"></div>
-        <div class="card" style="margin-top: 14px; border: none; padding: 0">
+        <p class="va-subheading">Visual ที่ใช้งานอยู่</p>
+        <div class="card" style="margin-top: 6px; border: none; padding: 0">
           <table>
             <thead>
               <tr>
@@ -283,10 +417,28 @@
                 <th>Dur</th>
                 <th>Status</th>
                 <th>Prompt</th>
+                <th>ข้อความจากระบบ</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="vaBody"></tbody>
+          </table>
+        </div>
+        <div id="vaRejectedWrap" class="va-rejected-wrap" style="display: none">
+          <h3>Rejected assets</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Position</th>
+                <th>Dur</th>
+                <th>Status</th>
+                <th>Prompt</th>
+                <th>ข้อความจากระบบ</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="vaBodyRejected"></tbody>
           </table>
         </div>
       </div>
@@ -315,6 +467,41 @@
       const footageTempleFilterEl = document.getElementById("footageTempleFilter");
       const expandedScripts = new Set();
       let visualsJobId = null;
+      let vaLastItems = [];
+      const vaGeneratingIds = new Set();
+      const VA_PRESETS = {
+        intro_temple: {
+          asset_type: "opening_card",
+          insert_position: "intro",
+          duration_sec: 3,
+          prompt_text:
+            "วันนี้พาไปดูบรรยากาศสถานที่ศักดิ์สิทธิ์ และจุดสำคัญที่น่าสนใจ",
+        },
+        worship_spots: {
+          asset_type: "explainer_card",
+          insert_position: "middle",
+          duration_sec: 3,
+          prompt_text: "จุดไหว้สำคัญ ตามความเชื่อ เหมาะกับการตั้งจิตและขอพร",
+        },
+        energy_meaning: {
+          asset_type: "explainer_card",
+          insert_position: "middle",
+          duration_sec: 3,
+          prompt_text: "แนวพลังของสถานที่นี้ ให้ความรู้สึกสงบ ตั้งหลัก และเปิดทาง",
+        },
+        amulet_row: {
+          asset_type: "transition_card",
+          insert_position: "before_cta",
+          duration_sec: 3,
+          prompt_text: "ท้ายคลิปพาไปดูแผงพระ เครื่องราง และวัตถุมงคล",
+        },
+        cta_scan: {
+          asset_type: "cta_card",
+          insert_position: "outro",
+          duration_sec: 3,
+          prompt_text: "อยากรู้ว่าเครื่องรางของคุณเด่นด้านไหน ลองสแกนกับ Ener Scan",
+        },
+      };
 
       function statusClass(status) {
         return String(status || "").replace(/\s+/g, "_");
@@ -598,54 +785,126 @@
       const vaDuration = document.getElementById("vaDuration");
       const vaSort = document.getElementById("vaSort");
       const vaPrompt = document.getElementById("vaPrompt");
+      const vaBodyRejected = document.getElementById("vaBodyRejected");
+      const vaRejectedWrap = document.getElementById("vaRejectedWrap");
+      const vaShowRejected = document.getElementById("vaShowRejected");
+      const vaPresetBar = document.getElementById("vaPresetBar");
+      function escHtml(s) {
+        if (s == null || s === "") return "";
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
       function setVaMsg(t) {
         vaMsg.textContent = t || "";
+      }
+      function splitVisualItems(items) {
+        const active = [];
+        const rejected = [];
+        for (const it of items || []) {
+          const st = it.visual_asset && it.visual_asset.status;
+          if (st === "rejected") rejected.push(it);
+          else active.push(it);
+        }
+        return { active, rejected };
+      }
+      function vaPillClass(st) {
+        const k = String(st || "").replace(/\s+/g, "_");
+        if (k === "queued") return "va-pill va-queued";
+        if (k === "generating") return "va-pill va-generating";
+        if (k === "ready") return "va-pill va-ready";
+        if (k === "used") return "va-pill va-used";
+        if (k === "failed") return "va-pill va-failed";
+        if (k === "rejected") return "va-pill va-rejected";
+        return "va-pill va-queued";
+      }
+      function renderVisualAssetRow(row, opts) {
+        const muted = !!(opts && opts.rejectedSection);
+        const a = row.visual_asset || {};
+        const st = a.status || "-";
+        const aid = a.id || "";
+        const showAsGenerating = st === "generating" || (aid && vaGeneratingIds.has(aid));
+        const err = a.error_message ? escHtml(a.error_message) : "";
+        const errCell = err
+          ? `<div class="va-row-err">${err}</div>`
+          : `<span class="va-muted">—</span>`;
+        let actionsHtml = "";
+        if (muted) {
+          actionsHtml = `<span class="va-muted">—</span>`;
+        } else if (showAsGenerating) {
+          actionsHtml =
+            `<button type="button" class="va-btn-gen" disabled>Generating…</button> ` +
+            `<button type="button" data-va="rej" data-aid="${aid}">Reject</button>`;
+        } else if (st === "queued") {
+          actionsHtml =
+            `<button type="button" class="va-btn-gen" data-va="gen" data-aid="${aid}">Generate</button> ` +
+            `<button type="button" data-va="rej" data-aid="${aid}">Reject</button>`;
+        } else if (st === "failed") {
+          actionsHtml =
+            `<button type="button" class="va-btn-gen" data-va="gen" data-aid="${aid}">Generate อีกครั้ง</button> ` +
+            `<button type="button" data-va="rej" data-aid="${aid}">Reject</button>`;
+        } else if (st === "ready" || st === "used") {
+          actionsHtml =
+            `<button type="button" class="va-btn-prev" data-va="prev" data-aid="${aid}">Preview การ์ด</button> ` +
+            `<button type="button" data-va="rej" data-aid="${aid}">Reject</button>`;
+        } else {
+          actionsHtml = `<span class="va-muted">${escHtml(st)}</span>`;
+        }
+        const trClass = muted ? "va-row-muted" : "";
+        const pillKey = !muted && showAsGenerating ? "generating" : st;
+        const statusLabel = !muted && showAsGenerating ? "Generating…" : st;
+        return `<tr class="${trClass}">
+            <td>${escHtml(a.asset_type || "-")}</td>
+            <td>${escHtml(row.insert_position || "-")}</td>
+            <td>${escHtml(row.duration_sec ?? "-")}</td>
+            <td><span class="${vaPillClass(pillKey)}">${escHtml(statusLabel)}</span></td>
+            <td>${escHtml(short(a.prompt_text, 48))}</td>
+            <td>${errCell}</td>
+            <td class="actions">${actionsHtml}</td>
+          </tr>`;
+      }
+      function renderVisualLists(items) {
+        const { active, rejected } = splitVisualItems(items);
+        vaBody.innerHTML = active.length
+          ? active.map((r) => renderVisualAssetRow(r, { rejectedSection: false })).join("")
+          : `<tr><td colspan="7">ยังไม่มี visual ในสถานะใช้งาน (queued / generating / ready / used / failed)</td></tr>`;
+        const showRej = vaShowRejected && vaShowRejected.checked;
+        if (showRej) {
+          vaRejectedWrap.style.display = "block";
+          vaBodyRejected.innerHTML = rejected.length
+            ? rejected.map((r) => renderVisualAssetRow(r, { rejectedSection: true })).join("")
+            : `<tr><td colspan="7" class="va-muted">ไม่มีรายการที่ถูก reject</td></tr>`;
+        } else {
+          vaRejectedWrap.style.display = "none";
+          vaBodyRejected.innerHTML = "";
+        }
       }
       function closeVisualsPanel() {
         visualsOverlay.classList.remove("open");
         visualsOverlay.setAttribute("aria-hidden", "true");
         visualsJobId = null;
+        vaLastItems = [];
+        vaGeneratingIds.clear();
+        if (vaShowRejected) vaShowRejected.checked = false;
       }
       function openVisualsPanel(jobId) {
         visualsJobId = jobId;
         visualsJobLabel.textContent = short(jobId, 8);
         visualsOverlay.classList.add("open");
         visualsOverlay.setAttribute("aria-hidden", "false");
+        vaGeneratingIds.clear();
+        if (vaShowRejected) vaShowRejected.checked = false;
         setVaMsg("");
         loadVisualsList();
-      }
-      function renderVisualRows(items) {
-        const rows = (items || []).map((row) => {
-          const a = row.visual_asset || {};
-          const st = a.status || "-";
-          const actions = [];
-          actions.push(
-            `<button type="button" data-va="gen" data-aid="${a.id}">Generate</button>`
-          );
-          if (a.status === "ready") {
-            actions.push(
-              `<button type="button" data-va="prev" data-aid="${a.id}">Preview</button>`
-            );
-          }
-          actions.push(
-            `<button type="button" data-va="rej" data-aid="${a.id}">Reject</button>`
-          );
-          return `<tr>
-            <td>${a.asset_type || "-"}</td>
-            <td>${row.insert_position || "-"}</td>
-            <td>${row.duration_sec ?? "-"}</td>
-            <td><span class="status ${statusClass(st)}">${st}</span></td>
-            <td>${short(a.prompt_text, 42)}</td>
-            <td class="actions">${actions.join(" ")}</td>
-          </tr>`;
-        });
-        vaBody.innerHTML = rows.length ? rows.join("") : `<tr><td colspan="6">ยังไม่มี visual</td></tr>`;
       }
       async function loadVisualsList() {
         if (!visualsJobId) return;
         try {
           const data = await api(`/admin/video-jobs/${visualsJobId}/visual-assets`);
-          renderVisualRows(data.items || []);
+          vaLastItems = data.items || [];
+          renderVisualLists(vaLastItems);
         } catch (e) {
           setVaMsg(e.message || String(e));
         }
@@ -666,31 +925,54 @@
             body: JSON.stringify(body),
           });
           vaPrompt.value = "";
-          setVaMsg("เพิ่ม visual แล้ว");
+          setVaMsg("เพิ่มลงรายการแล้ว — กด Generate แล้วอย่าลืม Retry ที่ Job");
           await loadVisualsList();
         } catch (e) {
           alert(e.message || String(e));
         }
       }
+      function onVaPresetClick(ev) {
+        const btn = ev.target.closest("[data-va-preset]");
+        if (!btn || !vaAssetType) return;
+        const key = btn.dataset.vaPreset;
+        const p = VA_PRESETS[key];
+        if (!p) return;
+        vaAssetType.value = p.asset_type;
+        vaInsertPos.value = p.insert_position;
+        vaDuration.value = String(p.duration_sec);
+        vaPrompt.value = p.prompt_text;
+        setVaMsg("เลือกคำเตรียมแล้ว — ตรวจข้อความและกด「เพิ่มลงรายการ」หรือแก้ก่อนเพิ่ม");
+      }
       async function onVisualsTableClick(ev) {
         const btn = ev.target.closest("button[data-va]");
-        if (!btn) return;
+        if (!btn || btn.disabled) return;
         const aid = btn.dataset.aid;
         const kind = btn.dataset.va;
         try {
           if (kind === "gen") {
-            await api(`/admin/visual-assets/${aid}/generate`, {
-              method: "POST",
-              body: JSON.stringify({}),
-            });
-            setVaMsg("Generate เสร็จ");
-            await loadVisualsList();
+            vaGeneratingIds.add(aid);
+            renderVisualLists(vaLastItems);
+            try {
+              await api(`/admin/visual-assets/${aid}/generate`, {
+                method: "POST",
+                body: JSON.stringify({}),
+              });
+              setVaMsg(
+                "สร้างการ์ดเสร็จแล้ว — กด「Preview การ์ด」ดูรูป แล้วอย่าลืม Retry ที่ Job เพื่อ render ใหม่"
+              );
+            } catch (e) {
+              alert(e.message || String(e));
+            } finally {
+              vaGeneratingIds.delete(aid);
+              await loadVisualsList();
+            }
           } else if (kind === "prev") {
             const data = await api(`/admin/visual-assets/${aid}/preview`);
             if (data.preview_url) window.open(data.preview_url, "_blank");
+            else throw new Error("ไม่มี preview_url");
           } else if (kind === "rej") {
             await api(`/admin/visual-assets/${aid}/reject`, { method: "PATCH" });
-            setVaMsg("Reject แล้ว");
+            setVaMsg("Reject แล้ว — รายการย้ายไปส่วน Rejected (ถ้าเปิดแสดง)");
             await loadVisualsList();
           }
         } catch (e) {
@@ -700,10 +982,17 @@
       document.getElementById("vaAddBtn").addEventListener("click", addVisualAsset);
       document.getElementById("vaRefreshBtn").addEventListener("click", loadVisualsList);
       document.getElementById("vaCloseBtn").addEventListener("click", closeVisualsPanel);
+      if (vaShowRejected) {
+        vaShowRejected.addEventListener("change", () => renderVisualLists(vaLastItems));
+      }
+      if (vaPresetBar) {
+        vaPresetBar.addEventListener("click", onVaPresetClick);
+      }
       visualsOverlay.addEventListener("click", (ev) => {
         if (ev.target === visualsOverlay) closeVisualsPanel();
       });
       vaBody.addEventListener("click", onVisualsTableClick);
+      vaBodyRejected.addEventListener("click", onVisualsTableClick);
       document.querySelectorAll(".tab-btn").forEach((btn) => {
         btn.addEventListener("click", () => activateTab(btn.dataset.tab));
       });
