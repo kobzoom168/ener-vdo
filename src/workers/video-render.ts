@@ -1,5 +1,10 @@
 import { env } from "../config/env.js";
 import {
+  removeTempMp4Path,
+  runVideoQc,
+  writeTempMp4,
+} from "../lib/videoQc.js";
+import {
   findActiveFootageClipByPriority,
   getActiveFootageClipById,
 } from "../lib/footageClipsDb.js";
@@ -174,9 +179,77 @@ async function processJob(job: VideoJobRow): Promise<void> {
   });
 
   await updateVideoJob(job.id, {
-    status: "ready_review",
+    status: "qc_checking",
     video_url: videoRef,
   });
+
+  const tmpPath = await writeTempMp4(mp4);
+  try {
+    const qcResult = await runVideoQc({
+      jobId: job.id,
+      mp4Path: tmpPath,
+      srtUtf8: srtBuf.toString("utf8"),
+      scriptText: job.script_text,
+      subtitleMaxCharsPerLine: env.subtitleMaxCharsPerLine(),
+      anthropicApiKey: env.anthropicApiKeyOptional(),
+    });
+    const checkedAt = new Date().toISOString();
+    if (qcResult.passed) {
+      await updateVideoJob(job.id, {
+        status: "ready_review",
+        qc_result_json: qcResult as unknown as Record<string, unknown>,
+        qc_error_message: null,
+        qc_checked_at: checkedAt,
+      });
+    } else {
+      const short =
+        qcResult.subtitle.issues.find((i) => i.severity === "error")?.message ??
+        qcResult.video.issues.find((i) => i.severity === "error")?.message ??
+        qcResult.audio.issues.find((i) => i.severity === "error")?.message ??
+        "QC ไม่ผ่าน";
+      await updateVideoJob(job.id, {
+        status: "qc_failed",
+        qc_result_json: qcResult as unknown as Record<string, unknown>,
+        qc_error_message: short,
+        qc_checked_at: checkedAt,
+      });
+    }
+  } catch (e) {
+    const msg = errMessage(e);
+    const failJson = {
+      passed: false,
+      overall_score: 0,
+      next_action: "manual_review" as const,
+      audio: {
+        passed: false,
+        score: 0,
+        issues: [
+          {
+            severity: "error" as const,
+            code: "QC_CRASH",
+            message: msg,
+          },
+        ],
+      },
+      subtitle: { passed: true, score: 0, issues: [] },
+      video: { passed: true, score: 0, issues: [] },
+      ai_review: {
+        passed: true,
+        score: 0,
+        issues: [],
+        summary: "",
+        recommendations: [],
+      },
+    };
+    await updateVideoJob(job.id, {
+      status: "qc_failed",
+      qc_error_message: msg,
+      qc_result_json: failJson as unknown as Record<string, unknown>,
+      qc_checked_at: new Date().toISOString(),
+    });
+  } finally {
+    await removeTempMp4Path(tmpPath);
+  }
 }
 
 async function main(): Promise<void> {

@@ -39,6 +39,9 @@ export async function updateVideoJob(
       | "subtitle_fontsize"
       | "subtitle_url"
       | "error_message"
+      | "qc_result_json"
+      | "qc_error_message"
+      | "qc_checked_at"
     >
   >
 ): Promise<void> {

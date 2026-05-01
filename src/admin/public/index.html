@@ -60,6 +60,8 @@
       .voicing { background: #8e44ad; }
       .rendering { background: #e67e22; }
       .ready_review { background: #f1c40f; color: #111; }
+      .qc_checking { background: #3498db; }
+      .qc_failed { background: #e74c3c; }
       .approved { background: #2ecc71; }
       .published { background: #1e8f4f; }
       .failed { background: #e74c3c; }
@@ -413,6 +415,42 @@
       #batchPlaceholderMsg {
         margin-top: 10px;
       }
+      .qc-snippet {
+        font-size: 11px;
+        color: #ffb4b4;
+        margin-top: 4px;
+        max-width: 140px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .qc-badge {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-size: 10px;
+        background: #1e6b3d;
+        color: #fff;
+        font-weight: 700;
+      }
+      .qc-modal-section {
+        margin-bottom: 14px;
+        padding: 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: #18182c;
+      }
+      .qc-modal-section h4 {
+        margin: 0 0 8px;
+        font-size: 14px;
+      }
+      .qc-issue {
+        font-size: 12px;
+        color: #ffb4b4;
+        margin: 4px 0 0 12px;
+        list-style: disc;
+      }
     </style>
   </head>
   <body>
@@ -663,6 +701,16 @@
       </section>
     </div>
 
+    <div id="qcOverlay" class="modal-overlay" aria-hidden="true">
+      <div class="modal-panel" role="dialog" aria-labelledby="qcTitle" style="max-width: 640px">
+        <h2 id="qcTitle">ผลตรวจคุณภาพคลิป</h2>
+        <div id="qcModalBody"></div>
+        <div class="row" style="margin-top: 12px">
+          <button type="button" id="qcCloseBtn">ปิด</button>
+        </div>
+      </div>
+    </div>
+
     <div id="visualsOverlay" class="modal-overlay" aria-hidden="true">
       <div class="modal-panel" role="dialog" aria-labelledby="visualsTitle">
         <h2 id="visualsTitle">Visual assets · Job <span id="visualsJobLabel"></span></h2>
@@ -822,6 +870,79 @@
       function statusClass(status) {
         return String(status || "").replace(/\s+/g, "_");
       }
+      function jobStatusThai(status) {
+        const m = {
+          queued: "รอคิว",
+          scripting: "เขียนสคริปต์",
+          voicing: "สร้างเสียง",
+          rendering: "กำลังตัดต่อ",
+          qc_checking: "กำลังตรวจคุณภาพ",
+          qc_failed: "QC ไม่ผ่าน",
+          ready_review: "พร้อมให้ตรวจ",
+          approved: "อนุมัติแล้ว",
+          published: "เผยแพร่แล้ว",
+          failed: "ล้มเหลว",
+        };
+        return m[status] || status || "-";
+      }
+      function nextActionThai(code) {
+        const m = {
+          ready_review: "ส่งให้กบตรวจ",
+          regenerate_voice: "สร้างเสียงใหม่",
+          regenerate_subtitle_and_rerender: "สร้างซับใหม่แล้ว render ใหม่",
+          rerender: "render ใหม่",
+          retry_script: "เขียนสคริปต์ใหม่",
+          manual_review: "ตรวจด้วยมือ / ดีบัก",
+        };
+        return m[code] || code || "-";
+      }
+      function qcPassLabel(passed) {
+        if (passed === true) return "ผ่าน ✅";
+        if (passed === false) return "ไม่ผ่าน ❌";
+        return "—";
+      }
+      function buildQcModalHtml(qc) {
+        if (!qc || typeof qc !== "object") return "<p>ไม่มีข้อมูล QC</p>";
+        const parts = [];
+        const sec = (title, key) => {
+          const b = qc[key];
+          if (!b || typeof b !== "object") return "";
+          const issues = Array.isArray(b.issues) ? b.issues : [];
+          const issueHtml = issues
+            .map(
+              (i) =>
+                `<li class="qc-issue">${String(i.message || "").replace(/</g, "&lt;")}</li>`
+            )
+            .join("");
+          return `<div class="qc-modal-section"><h4>${title}: ${qcPassLabel(b.passed)} (คะแนน ${Number(b.score) || 0})</h4>${
+            issueHtml ? `<ul style="margin:0;padding-left:18px">${issueHtml}</ul>` : ""
+          }</div>`;
+        };
+        parts.push(sec("เสียง", "audio"));
+        parts.push(sec("ซับ", "subtitle"));
+        parts.push(sec("วิดีโอ", "video"));
+        const ai = qc.ai_review;
+        if (ai && typeof ai === "object") {
+          const rec = Array.isArray(ai.recommendations)
+            ? ai.recommendations
+                .map((r) => `<li>${String(r).replace(/</g, "&lt;")}</li>`)
+                .join("")
+            : "";
+          parts.push(
+            `<div class="qc-modal-section"><h4>AI ดูแบบคน: ${qcPassLabel(ai.passed)} (คะแนน ${Number(ai.score) || 0})</h4><p style="font-size:13px;color:var(--muted);margin:0 0 8px">${String(
+              ai.summary || ""
+            ).replace(/</g, "&lt;")}</p>${
+              rec ? `<p style="margin:0;font-size:12px;color:var(--muted)">แนะนำ:</p><ul style="margin:4px 0 0;padding-left:18px">${rec}</ul>` : ""
+            }</div>`
+          );
+        }
+        const na = qc.next_action ? nextActionThai(qc.next_action) : "—";
+        const overall = Number.isFinite(Number(qc.overall_score)) ? qc.overall_score : "—";
+        parts.push(
+          `<div class="qc-modal-section"><p style="margin:0;font-size:14px"><strong>คะแนนรวม:</strong> ${overall}</p><p style="margin:8px 0 0;font-size:14px"><strong>ขั้นต่อไปที่แนะนำ:</strong> ${na}</p></div>`
+        );
+        return parts.join("");
+      }
       function short(s, n) {
         if (!s) return "-";
         const t = String(s);
@@ -884,11 +1005,18 @@
       }
       function renderActions(job) {
         const actions = [];
-        actions.push(`<button data-action="preview" data-id="${job.id}">Preview</button>`);
+        if (job.status === "qc_checking") {
+          actions.push(`<span class="va-muted" style="font-size:12px">กำลังตรวจ QC…</span>`);
+        } else if (job.status === "qc_failed") {
+          actions.push(`<button data-action="qc-modal" data-id="${job.id}">ดูผล QC</button>`);
+          actions.push(`<button data-action="preview-debug" data-id="${job.id}">ดูคลิป (ดีบัก)</button>`);
+        } else {
+          actions.push(`<button data-action="preview" data-id="${job.id}">Preview</button>`);
+        }
         if (job.status === "ready_review") {
           actions.push(`<button data-action="approve" data-id="${job.id}">Approve</button>`);
         }
-        if (job.status === "failed" || job.status === "ready_review") {
+        if (job.status === "failed" || job.status === "ready_review" || job.status === "qc_failed") {
           const fs = Number.isFinite(Number(job.subtitle_fontsize))
             ? Math.min(30, Math.max(6, Number(job.subtitle_fontsize)))
             : 8;
@@ -897,6 +1025,11 @@
           );
           actions.push(`<span style="color:#aaa;font-size:12px">${fs}</span>`);
           actions.push(`<button data-action="retry" data-id="${job.id}">Retry</button>`);
+        }
+        if (job.status === "qc_failed") {
+          actions.push(
+            `<button data-action="qc-smart-retry" data-id="${job.id}">สร้างใหม่ตามคำแนะนำ</button>`
+          );
         }
         actions.push(`<button data-action="set-footage" data-id="${job.id}">Set Footage</button>`);
         actions.push(`<button data-action="visuals" data-id="${job.id}">Visuals</button>`);
@@ -910,7 +1043,11 @@
             <tr>
               <td>${short(job.id, 5)}</td>
               <td>${job.source_type || "-"}</td>
-              <td><span class="status ${statusClass(job.status)}">${job.status || "-"}</span></td>
+              <td>
+                <span class="status ${statusClass(job.status)}" title="${String(job.status || "").replace(/"/g, "&quot;")}">${jobStatusThai(job.status)}</span>
+                ${job.status === "ready_review" && job.qc_result_json ? `<span class="qc-badge">QC ผ่านแล้ว</span>` : ""}
+                ${job.status === "qc_failed" && job.qc_error_message ? `<div class="qc-snippet" title="${String(job.qc_error_message).replace(/"/g, "&quot;")}">${short(job.qc_error_message, 48)}</div>` : ""}
+              </td>
               <td>${job.footage_clip_id ? short(job.footage_clip_id, 5) : "auto"}</td>
               <td>${short(job.script_text, 50)}</td>
               <td>${job.created_at ? new Date(job.created_at).toLocaleString() : "-"}</td>
@@ -1020,10 +1157,29 @@
         const action = btn.dataset.action;
         const id = btn.dataset.id;
         try {
-          if (action === "preview") {
+          if (action === "preview" || action === "preview-debug") {
             const data = await api(`/admin/video-jobs/${id}/preview`);
             if (!data.video_url) throw new Error("ไม่มี video_url");
             window.open(data.video_url, "_blank");
+          } else if (action === "qc-modal") {
+            const data = await api(`/admin/video-jobs/${id}`);
+            const bodyEl = document.getElementById("qcModalBody");
+            const ov = document.getElementById("qcOverlay");
+            bodyEl.innerHTML = buildQcModalHtml(data.job && data.job.qc_result_json);
+            ov.classList.add("open");
+            ov.setAttribute("aria-hidden", "false");
+          } else if (action === "qc-smart-retry") {
+            const slider = jobsBody.querySelector(`input[data-font-slider-for="${id}"]`);
+            const sliderValue = slider ? Number.parseInt(slider.value, 10) : 8;
+            await api(`/admin/video-jobs/${id}/retry`, {
+              method: "PATCH",
+              body: JSON.stringify({
+                from: "queued",
+                subtitle_fontsize: Number.isFinite(sliderValue) ? sliderValue : 8,
+              }),
+            });
+            showMsg("เริ่มสร้างใหม่ — ดูคำแนะใน ดูผล QC แล้วปรับ footage/สคริปต์ก่อนรอบถัดไปถ้าจำเป็น");
+            await loadJobs();
           } else if (action === "approve") {
             await api(`/admin/video-jobs/${id}/approve`, { method: "PATCH" });
             await loadJobs();
@@ -1082,6 +1238,20 @@
         } catch (e) {
           alert(e.message || String(e));
         }
+      }
+
+      const qcOverlay = document.getElementById("qcOverlay");
+      function closeQcModal() {
+        if (!qcOverlay) return;
+        qcOverlay.classList.remove("open");
+        qcOverlay.setAttribute("aria-hidden", "true");
+      }
+      const qcCloseBtn = document.getElementById("qcCloseBtn");
+      if (qcCloseBtn) qcCloseBtn.addEventListener("click", closeQcModal);
+      if (qcOverlay) {
+        qcOverlay.addEventListener("click", (e) => {
+          if (e.target === qcOverlay) closeQcModal();
+        });
       }
 
       document.getElementById("saveKeyBtn").addEventListener("click", () => {

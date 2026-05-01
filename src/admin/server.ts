@@ -345,6 +345,19 @@ app.get("/admin/video-jobs", requireAdmin, async (_req, res) => {
   }
 });
 
+app.get("/admin/video-jobs/:id", requireAdmin, async (req, res) => {
+  try {
+    const row = await getVideoJobById(req.params.id);
+    if (!row) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    res.json({ job: row });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 app.patch("/admin/video-jobs/:id/approve", requireAdmin, async (req, res) => {
   try {
     const id = req.params.id;
@@ -409,6 +422,8 @@ app.patch("/admin/video-jobs/:id/retry", requireAdmin, async (req, res) => {
       "scripting",
       "voicing",
       "rendering",
+      "qc_checking",
+      "qc_failed",
       "ready_review",
     ]);
     if (!resettable.has(existing.status)) {
@@ -423,6 +438,9 @@ app.patch("/admin/video-jobs/:id/retry", requireAdmin, async (req, res) => {
       voice_url: null,
       subtitle_url: null,
       video_url: null,
+      qc_result_json: null,
+      qc_error_message: null,
+      qc_checked_at: null,
       ...(subtitle_fontsize !== null ? { subtitle_fontsize } : {}),
     });
     res.json({ ok: true, id, status: "queued" });

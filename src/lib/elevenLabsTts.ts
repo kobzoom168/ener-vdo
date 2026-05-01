@@ -50,7 +50,12 @@ export async function synthesizeThaiWithSubtitles(
   if (!align) {
     throw new Error("ElevenLabs response missing alignment for subtitles");
   }
-  const srt = alignmentToSrt(align);
+  const srt = alignmentToSrt(align, {
+    maxCharsPerLine: env.subtitleMaxCharsPerLine(),
+    maxLines: env.subtitleMaxLines(),
+    minCueSec: env.subtitleMinCueSec(),
+    maxCueSec: env.subtitleMaxCueSec(),
+  });
   if (!srt.trim()) {
     throw new Error("Failed to build SRT from alignment");
   }
